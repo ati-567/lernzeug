@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>I Interface Segregation</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav><a href="05c-lsp.html">← L</a><a href="06a-repository.html">Weiter: Repository →</a></nav>
+<h1>I: Interface Segregation Principle</h1>
+<p><i>Kleine, passende Interfaces</i></p>
+
+<div class="box prio-niedrig"><b>Wichtigkeit:</b> <span class="stars">★★☆☆☆</span> Gut zu wissen (5. von 5 in der Lernreihenfolge)<br>Folgt meist von allein, wenn man SRP beachtet. Wird erst bei großen Interfaces ein echtes Thema. Für den Einstieg reicht: Interfaces klein halten.</div>
+
+<div class="box note"><b>Alltag:</b> Eine Fernbedienung mit 80 Tasten, von denen du 3 benutzt. Besser: eine mit den Tasten, die du brauchst.</div>
+<div class="box merk"><b>Regel:</b> Lieber mehrere kleine, passende Interfaces als ein großes. Niemand soll Methoden implementieren müssen, die er nicht braucht.</div>
+
+<h2>Beispiel</h2>
+<div class="cols">
+<div class="box bad"><b>Verstößt</b>
+<pre><code>interface IBenachrichtigung
+{
+    void SendeMail(...);
+    void SendeSms(...);
+    void SendePush(...);
+    void SendeBrief(...);
+}</code></pre>Wer nur Mail kann, muss trotzdem alles implementieren.</div>
+<div class="box good"><b>Passt</b>
+<pre><code>interface IMailService
+{
+    void SendeBestaetigung(...);
+}
+interface ISmsService
+{
+    void Sende(...);
+}</code></pre>Jeder implementiert und nutzt nur, was er wirklich braucht.</div>
+</div>
+
+
+<h2>Woran erkenne ich es?</h2>
+<p class="q">Gibt es Implementierungen mit leeren Methoden oder <code>NotImplementedException</code>, nur weil das Interface zu groß ist?</p>
+
+<nav><a href="05c-lsp.html">← L</a><a href="06a-repository.html">Weiter: Repository →</a></nav>
+</body>
+</html>

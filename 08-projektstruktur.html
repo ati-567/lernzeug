@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>8 Projektstruktur</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav><a href="06-architektur.html">← Architektur</a><a href="09-antipatterns.html">Weiter: Anti-Patterns →</a></nav>
+<h1>8. Projektstruktur: Wohin gehört welche Klasse?</h1>
+
+<div class="box note"><b>Alltag:</b> In einem Haus gibt es Räume: Küche, Bad, Schlafzimmer. Niemand kocht im Bad. Ein Projekt braucht auch Räume, damit jeder weiß, wo er etwas findet und wo er etwas hinlegt.</div>
+<div class="box merk"><b>Merksatz:</b> Die Schichten aus Seite 6 werden zu eigenen Projekten in der Solution. So sorgt der Compiler dafür, dass niemand die Regeln bricht.</div>
+
+<h2>Die Frage</h2>
+<p>Wir haben Controller, Services, Interfaces, Repositories, Entities, DTOs und einen DI-Container. Auf Seite 6 haben wir Schichten gezeichnet. Aber wie sieht das in Visual Studio aus, und wohin kommt <code>BestellService</code>, wohin <code>SmtpMailService</code>?</p>
+
+<h2>Die Solution im Überblick</h2>
+<p>Eine <b>Solution</b> enthält mehrere <b>Projekte</b> (jedes wird zu einer eigenen DLL). Vier davon bilden den Kern:</p>
+<pre><code>Shop.sln
+├── Shop.Domain            Kern: Entities, fachliche Regeln
+├── Shop.Application       Anwendungslogik: Services, Interfaces
+├── Shop.Infrastructure    Technik: Datenbank, Mail, externe APIs
+├── Shop.Api               Eingang: Controller, DTOs, Program.cs
+└── Shop.Tests             Unit-Tests</code></pre>
+
+<div class="cols">
+<div class="box"><b>Domain</b><br>Die Fachlichkeit. Klassen wie <code>Bestellung</code> und fachliche Fehler. Kennt <b>nichts</b> anderes: kein EF, kein ASP.NET, keine Mail.</div>
+<div class="box"><b>Application</b><br>Die Abläufe. <code>BestellService</code>, <code>RabattService</code> und die <b>Interfaces</b>, die sie brauchen (<code>IBestellRepository</code>, <code>IMailService</code>).</div>
+<div class="box"><b>Infrastructure</b><br>Die Technik. <code>ShopDbContext</code>, <code>BestellRepository</code>, <code>SmtpMailService</code>. Setzt die Interfaces der Application um.</div>
+<div class="box"><b>Api</b><br>Der Eingang. Controller, Eingabe- und Ausgabe-DTOs, Exception-Handler und <code>Program.cs</code> mit der Verdrahtung.</div>
+</div>
+
+<h2>Wer darf wen kennen?</h2>
+<p>Das ist die wichtigste Regel: <b>Abhängigkeiten zeigen nur nach innen</b>, zur Domain hin.</p>
+<div class="flow">
+  <div class="box"><b>Api</b></div><span class="arrow">→</span>
+  <div class="box"><b>Application</b></div><span class="arrow">→</span>
+  <div class="box good"><b>Domain</b><br>(ganz innen)</div>
+</div>
+<div class="flow">
+  <div class="box"><b>Infrastructure</b></div><span class="arrow">→</span>
+  <div class="box"><b>Application</b></div><span class="arrow">→</span>
+  <div class="box good"><b>Domain</b></div>
+</div>
+<table>
+<tr><th>Projekt</th><th>Verweist auf</th><th>Darf nicht verweisen auf</th></tr>
+<tr><td><b>Domain</b></td><td>nichts</td><td>alle anderen</td></tr>
+<tr><td><b>Application</b></td><td>Domain</td><td>Infrastructure, Api</td></tr>
+<tr><td><b>Infrastructure</b></td><td>Application, Domain</td><td>Api</td></tr>
+<tr><td><b>Api</b></td><td>Application, Infrastructure (nur zum Registrieren), Domain</td><td></td></tr>
+</table>
+
+<div class="box note"><b>Warum so?</b> Das ist <a href="05e-dip.html">Dependency Inversion</a> im großen Stil. Die Application sagt per Interface, <b>was</b> sie braucht (<code>IMailService</code>). Die Infrastructure liefert das <b>Wie</b> (<code>SmtpMailService</code>) und kennt dafür die Application. Würde die Application die Infrastructure kennen, wäre die Fachlogik wieder an SQL und SMTP gekettet.</div>
+
+<h2>Der Compiler passt auf</h2>
+<p>Ein Projektverweis ist eine echte Abhängigkeit. Versucht jemand, in der Application <code>using Shop.Infrastructure;</code> zu schreiben, ohne dass ein Verweis existiert, bekommt er einen <b>Compilerfehler</b>. Die Architekturregel wird durchgesetzt, ohne dass jemand im Code Review darauf achten muss.</p>
+<pre><code>&lt;!-- Shop.Application.csproj --&gt;
+&lt;ItemGroup&gt;
+  &lt;ProjectReference Include="..\Shop.Domain\Shop.Domain.csproj" /&gt;
+&lt;/ItemGroup&gt;
+&lt;!-- kein Verweis auf Infrastructure oder Api --&gt;</code></pre>
+
+<h2>Wohin gehört welche Klasse?</h2>
+<table>
+<tr><th>Klasse</th><th>Projekt</th><th>Warum</th></tr>
+<tr><td><code>Bestellung</code> (Entity)</td><td><b>Domain</b></td><td>Fachlicher Kern, unabhängig von Technik</td></tr>
+<tr><td><code>FachlicherFehler</code>, <code>NichtGefunden</code></td><td><b>Domain</b></td><td>Fachliche Begriffe, kennen kein HTTP</td></tr>
+<tr><td><code>BestellService</code>, <code>RabattService</code></td><td><b>Application</b></td><td>Fachliche Abläufe und Regeln</td></tr>
+<tr><td><code>IBestellRepository</code>, <code>IMailService</code></td><td><b>Application</b></td><td>Die Application definiert, was sie braucht</td></tr>
+<tr><td><code>ShopDbContext</code>, Migrationen</td><td><b>Infrastructure</b></td><td>EF-Technik</td></tr>
+<tr><td><code>BestellRepository</code></td><td><b>Infrastructure</b></td><td>Setzt das Interface mit EF um</td></tr>
+<tr><td><code>SmtpMailService</code></td><td><b>Infrastructure</b></td><td>Setzt das Interface mit SMTP um</td></tr>
+<tr><td><code>BestellungController</code></td><td><b>Api</b></td><td>Nimmt HTTP an, übersetzt, ruft Service</td></tr>
+<tr><td><code>BestellungAnlegenDto</code>, <code>BestellungDto</code></td><td><b>Api</b></td><td>Form der Schnittstelle nach außen (siehe <a href="03a-dtos.html">DTOs</a>)</td></tr>
+<tr><td>Exception-Handler, Statuscodes</td><td><b>Api</b></td><td>Das ist HTTP-Wissen (siehe <a href="06b-validierung.html">Validierung</a>)</td></tr>
+<tr><td><code>Program.cs</code> (Registrierung)</td><td><b>Api</b></td><td>Hier wird alles verdrahtet</td></tr>
+<tr><td><code>FakeMailService</code>, Tests</td><td><b>Tests</b></td><td>Nur zum Testen</td></tr>
+</table>
+<div class="box note"><b>Schnelltest:</b> Frage dich bei einer neuen Klasse: "Würde sie sich ändern, wenn wir die Datenbank wechseln?" (Infrastructure) "Wenn wir die Schnittstelle zu React ändern?" (Api) "Wenn sich eine Geschäftsregel ändert?" (Application oder Domain)</div>
+
+<h2>Ordner innerhalb der Projekte</h2>
+<pre><code>Shop.Domain
+├── Bestellungen
+│   └── Bestellung.cs
+└── Fehler
+    ├── FachlicherFehler.cs
+    └── NichtGefunden.cs
+
+Shop.Application
+└── Bestellungen
+    ├── IBestellService.cs
+    ├── BestellService.cs
+    ├── IBestellRepository.cs
+    ├── RabattService.cs
+    └── IMailService.cs
+
+Shop.Infrastructure
+├── Daten
+│   ├── ShopDbContext.cs
+│   ├── BestellRepository.cs
+│   └── Migrations/
+├── Mail
+│   └── SmtpMailService.cs
+└── DependencyInjection.cs
+
+Shop.Api
+├── Controllers
+│   └── BestellungController.cs
+├── Dtos
+│   ├── BestellungAnlegenDto.cs
+│   └── BestellungDto.cs
+└── Program.cs</code></pre>
+<p>Hier ist nach <b>Fachthema</b> sortiert (alles zu "Bestellungen" zusammen), nicht nach Technik ("alle Services in einen Ordner"). Bei wachsender Anwendung findet man so alles zu einem Thema an einer Stelle.</p>
+
+<h2>Die Verdrahtung</h2>
+<p>Nur die Api kennt alle Projekte. Damit <code>Program.cs</code> nicht jede Klasse der Infrastructure einzeln aufzählt, bietet jedes Projekt eine kleine Methode an:</p>
+<pre><code>// Shop.Infrastructure/DependencyInjection.cs
+public static class DependencyInjection
+{
+    public static IServiceCollection AddInfrastructure(
+        this IServiceCollection services, IConfiguration config)
+    {
+        services.AddDbContext&lt;ShopDbContext&gt;(o =&gt;
+            o.UseSqlServer(config.GetConnectionString("Shop")));
+
+        services.AddScoped&lt;IBestellRepository, BestellRepository&gt;();
+        services.AddScoped&lt;IMailService, SmtpMailService&gt;();
+        return services;
+    }
+}
+
+// Shop.Api/Program.cs
+builder.Services.AddApplication();                       // Services
+builder.Services.AddInfrastructure(builder.Configuration); // DB, Mail</code></pre>
+<p>Diese eine Stelle in <code>Program.cs</code> nennt man die <b>Composition Root</b>: der einzige Ort, an dem Interfaces mit konkreten Klassen verbunden werden. Sonst steht nirgends im Code ein <code>new SmtpMailService()</code>.</p>
+
+<h2>Was die Aufteilung bringt</h2>
+<table>
+<tr><th>Wunsch</th><th>So hilft die Struktur</th></tr>
+<tr><td>Datenbank wechseln</td><td>Nur Infrastructure ändert sich, Application und Domain bleiben unverändert</td></tr>
+<tr><td>Zweite Oberfläche (mobile App, Konsolentool)</td><td>Neues Api-Projekt, das dieselbe Application nutzt</td></tr>
+<tr><td>Fachlogik testen</td><td>Application-Tests ohne Datenbank und ohne Webserver</td></tr>
+<tr><td>Zwei Teams</td><td>Weniger Konflikte, weil jeder in seinem Projekt arbeitet</td></tr>
+<tr><td>Neue Kollegen</td><td>Gleiche Struktur in jedem Projekt, man weiß, wo man suchen muss</td></tr>
+</table>
+
+<h2>Wann lohnt sich das, wann nicht?</h2>
+<div class="cols">
+<div class="box good"><b>Mehrere Projekte sinnvoll</b>
+<ul>
+  <li>Anwendung soll wachsen und lange leben</li>
+  <li>Mehrere Entwickler oder Teams</li>
+  <li>Echte Fachlogik, die unabhängig von Technik bleiben soll</li>
+  <li>Mehrere Schnittstellen (Web, Mobile, Batch)</li>
+</ul></div>
+<div class="box note"><b>Ein Projekt mit Ordnern reicht</b>
+<ul>
+  <li>Kleine interne Anwendung oder Prototyp</li>
+  <li>Hauptsächlich Daten anzeigen und speichern (CRUD)</li>
+  <li>Ein einzelner Entwickler</li>
+</ul></div>
+</div>
+<div class="box note"><b>Praxis:</b> Man kann klein starten. Ein Projekt mit den Ordnern <code>Controllers</code>, <code>Services</code>, <code>Data</code>, <code>Domain</code>, die dieselben Regeln einhalten, und später in eigene Projekte aufteilen, wenn es nötig wird. Die Regel "Abhängigkeiten zeigen nach innen" gilt auch dann.</div>
+
+<h2>Typische Fehler</h2>
+<table>
+<tr><th>Fehler</th><th>Folge</th></tr>
+<tr><td><code>DbContext</code> oder EF-Attribute in der Domain</td><td>Die Domain hängt an der Datenbanktechnik</td></tr>
+<tr><td>Application verweist auf Infrastructure</td><td>Fachlogik kennt SQL und SMTP, Tests brauchen echte Technik</td></tr>
+<tr><td>Controller enthält Fachlogik, die "nur kurz" dort steht</td><td>Fat Controller (siehe <a href="09-antipatterns.html">Anti-Patterns</a>)</td></tr>
+<tr><td>Ein Projekt namens "Common" oder "Utils" für alles</td><td>Wird zur Müllhalde, jeder hängt an jedem</td></tr>
+<tr><td>Für jede Kleinigkeit ein eigenes Projekt</td><td>Mehr Verwaltung als Nutzen</td></tr>
+<tr><td>DTOs in der Domain</td><td>Die Form der Schnittstelle bestimmt die Fachlichkeit</td></tr>
+</table>
+
+<h2>Namen für das Muster</h2>
+<p>Was wir hier gebaut haben, heißt je nach Buch <b>Clean Architecture</b>, <b>Onion Architecture</b> oder <b>Hexagonale Architektur</b>. Die Details unterscheiden sich, der Kern ist derselbe: Fachlogik innen, Technik außen, Abhängigkeiten zeigen nach innen. Es ist <b>Dependency Inversion</b> auf Projektebene.</p>
+
+<nav><a href="06-architektur.html">← Architektur</a><a href="09-antipatterns.html">Weiter: Anti-Patterns →</a></nav>
+</body>
+</html>

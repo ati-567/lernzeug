@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>4c Unit-Tests</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav><a href="04b-lebensdauer.html">← Lebensdauer</a><a href="05-solid.html">Weiter: SOLID →</a></nav>
+<h1>4c. Unit-Tests mit Fakes und Mocks</h1>
+
+<div class="box note"><b>Alltag:</b> Ein Pilot übt im Flugsimulator. Er lernt alle Handgriffe, ohne dass echtes Kerosin verbrannt wird und ohne dass jemand in Gefahr ist. Ein Fake ist der Simulator für unseren Code.</div>
+<div class="box merk"><b>Merksatz:</b> Ein Unit-Test prüft <b>eine</b> Klasse allein. Ihre Abhängigkeiten ersetzt man durch Fakes, deshalb braucht man DI.</div>
+
+<h2>Warum testen?</h2>
+<p>Auf Seite 1 haben wir gefragt: "Wie teste ich den Rabatt, ohne dass eine echte Mail rausgeht?" Jetzt lässt sich das beantworten. Ein Test:</p>
+<ul>
+  <li>läuft in Millisekunden, ohne Datenbank, ohne Mailserver, ohne Netzwerk,</li>
+  <li>sagt sofort, ob eine Änderung etwas kaputt gemacht hat,</li>
+  <li>dokumentiert, wie die Klasse sich verhalten soll.</li>
+</ul>
+
+<h2>Aufbau eines Tests: Arrange, Act, Assert</h2>
+<div class="flow">
+  <div class="box"><b>Arrange</b><br>Vorbereiten</div><span class="arrow">→</span>
+  <div class="box"><b>Act</b><br>Ausführen</div><span class="arrow">→</span>
+  <div class="box"><b>Assert</b><br>Prüfen</div>
+</div>
+
+<h2>Der einfachste Fall: Klasse ohne Abhängigkeiten</h2>
+<p>Der <code>RabattService</code> braucht nichts von außen. Hier ist kein Fake nötig.</p>
+<pre><code>public class RabattServiceTests
+{
+    [Fact]
+    public void Berechne_Menge_ueber_10_gibt_10_Prozent_Rabatt()
+    {
+        // Arrange
+        var service = new RabattService();
+        var bestellung = new Bestellung { Menge = 20, Preis = 10m };
+
+        // Act
+        var summe = service.Berechne(bestellung);
+
+        // Assert
+        Assert.Equal(180m, summe);     // 20 * 10 = 200, minus 10 %
+    }
+
+    [Fact]
+    public void Berechne_Menge_bis_10_gibt_keinen_Rabatt()
+    {
+        var service = new RabattService();
+        var bestellung = new Bestellung { Menge = 10, Preis = 10m };
+
+        var summe = service.Berechne(bestellung);
+
+        Assert.Equal(100m, summe);
+    }
+}</code></pre>
+<p>Der Name sagt, <b>was</b> passieren soll. Wenn ein Test rot wird, weiß man schon aus dem Namen, was kaputt ist. Das hier ist <b>xUnit</b>. NUnit und MSTest funktionieren ähnlich.</p>
+
+<h2>Der interessante Fall: Klasse mit Abhängigkeiten</h2>
+<p>Der <code>BestellService</code> braucht Mail und Datenbank. Beides wollen wir im Test nicht echt benutzen. Dank Konstruktor-Injection übergeben wir einfach Ersatz:</p>
+<div class="cols">
+<div class="box bad"><b>Ohne DI (Seite 3)</b>
+<pre><code>public void Anlegen(Bestellung b)
+{
+    new MailService().Sende(b);
+    new BestellRepository().Speichern(b);
+}</code></pre>
+Im Test geht echte Mail raus, und die echte Datenbank wird beschrieben. Ein Test ist unmöglich.</div>
+<div class="box good"><b>Mit DI (Seite 4)</b>
+<pre><code>public BestellService(
+    IMailService mail,
+    IBestellRepository repo) { ... }</code></pre>
+Im Test übergeben wir Fakes. Keine Seiteneffekte.</div>
+</div>
+
+<h2>Fakes von Hand</h2>
+<p>Ein Fake ist eine kleine Klasse, die dasselbe Interface umsetzt und sich nur merkt, was passiert ist.</p>
+<pre><code>public class FakeMailService : IMailService
+{
+    public List&lt;Bestellung&gt; Gesendet = new();
+
+    public void SendeBestaetigung(Bestellung b) =&gt; Gesendet.Add(b);
+}
+
+public class FakeBestellRepository : IBestellRepository
+{
+    public List&lt;Bestellung&gt; Gespeichert = new();
+
+    public void Speichern(Bestellung b) =&gt; Gespeichert.Add(b);
+}</code></pre>
+<pre><code>[Fact]
+public void Anlegen_speichert_und_sendet_Mail()
+{
+    // Arrange
+    var mail = new FakeMailService();
+    var repo = new FakeBestellRepository();
+    var service = new BestellService(mail, repo, new RabattService());
+
+    // Act
+    service.Anlegen(new Bestellung { Email = "a@b.de", Menge = 20, Preis = 10m });
+
+    // Assert
+    Assert.Single(repo.Gespeichert);
+    Assert.Equal(180m, repo.Gespeichert[0].Summe);
+    Assert.Single(mail.Gesendet);
+}</code></pre>
+<p>Der Test prüft, dass gespeichert, richtig gerechnet und eine Mail angestoßen wurde, ganz ohne echte Außenwelt.</p>
+
+<h2>Mocks mit einer Bibliothek</h2>
+<p>Für jede Abhängigkeit einen Fake zu schreiben wird mühsam. Bibliotheken wie <b>Moq</b> oder <b>NSubstitute</b> erzeugen Fakes im Test selbst.</p>
+<pre><code>[Fact]
+public void Anlegen_sendet_genau_eine_Mail()
+{
+    // Arrange
+    var mail = new Mock&lt;IMailService&gt;();
+    var repo = new Mock&lt;IBestellRepository&gt;();
+    var service = new BestellService(mail.Object, repo.Object, new RabattService());
+    var bestellung = new Bestellung { Email = "a@b.de", Menge = 20, Preis = 10m };
+
+    // Act
+    service.Anlegen(bestellung);
+
+    // Assert
+    mail.Verify(m =&gt; m.SendeBestaetigung(bestellung), Times.Once);
+    repo.Verify(r =&gt; r.Speichern(bestellung), Times.Once);
+}</code></pre>
+<p><code>Verify</code> prüft, ob eine Methode wie oft aufgerufen wurde.</p>
+
+<h2>Begriffe: Fake, Stub, Mock</h2>
+<table>
+<tr><th>Begriff</th><th>Gemeint ist</th><th>Beispiel</th></tr>
+<tr><td><b>Fake</b></td><td>Einfache Ersatz-Umsetzung mit echtem Verhalten</td><td><code>FakeBestellRepository</code> mit einer Liste im Speicher</td></tr>
+<tr><td><b>Stub</b></td><td>Liefert feste Antworten, damit der Test weiterläuft</td><td>Ein Repository, das immer "Bestellung #5" zurückgibt</td></tr>
+<tr><td><b>Mock</b></td><td>Prüft, <b>ob und wie</b> etwas aufgerufen wurde</td><td><code>Verify(... Times.Once)</code></td></tr>
+</table>
+<div class="box note"><b>Praxis:</b> Im Alltag sagt man oft "mocken" für alle drei. Wichtig ist der Gedanke: eine Abhängigkeit im Test durch Ersatz austauschen.</div>
+
+<h2>Was testet man, was nicht?</h2>
+<div class="cols">
+<div class="box good"><b>Gut testbar</b>
+<ul>
+  <li>Fachlogik in Services (Rabatt, Regeln)</li>
+  <li>Verzweigungen und Grenzfälle (Menge 10 / 11, Menge 0)</li>
+  <li>Fehlerfälle (ungültige Eingabe, nichts gefunden)</li>
+</ul></div>
+<div class="box note"><b>Meist nicht als Unit-Test</b>
+<ul>
+  <li>Getter und Setter</li>
+  <li>Das Framework selbst (Routing, JSON)</li>
+  <li>Echte Datenbank oder Mail (das sind Integrationstests)</li>
+</ul></div>
+</div>
+
+<h2>Unit-Test und Integrationstest</h2>
+<table>
+<tr><th></th><th>Unit-Test</th><th>Integrationstest</th></tr>
+<tr><td>Was wird geprüft</td><td>Eine Klasse allein</td><td>Mehrere Teile zusammen, oft mit echter Test-Datenbank</td></tr>
+<tr><td>Abhängigkeiten</td><td>Fakes oder Mocks</td><td>Echt oder Test-Variante</td></tr>
+<tr><td>Geschwindigkeit</td><td>Millisekunden</td><td>Sekunden</td></tr>
+<tr><td>Anzahl</td><td>Viele</td><td>Wenige, für die wichtigsten Abläufe</td></tr>
+</table>
+
+<h2>Was Tests über den Code verraten</h2>
+<ul>
+  <li><b>Test ist schwer zu schreiben?</b> Die Klasse hat zu viele Abhängigkeiten oder ruft <code>new</code> auf. Das ist ein Hinweis auf <a href="05a-srp.html">SRP</a>- oder <a href="05e-dip.html">DIP</a>-Probleme.</li>
+  <li><b>Fünf und mehr Fakes für einen Test?</b> Die Klasse macht vermutlich zu viel.</li>
+  <li><b>Test bricht bei jeder kleinen Änderung?</b> Er prüft Details der Umsetzung statt das Verhalten.</li>
+</ul>
+
+<nav><a href="04b-lebensdauer.html">← Lebensdauer</a><a href="05-solid.html">Weiter: SOLID →</a></nav>
+</body>
+</html>

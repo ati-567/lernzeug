@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D Dependency Inversion</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav><a href="05a-srp.html">← S</a><a href="05b-ocp.html">Weiter: O: Open/Closed Principle →</a></nav>
+<h1>D: Dependency Inversion Principle</h1>
+<p><i>Von Interfaces abhängen, nicht von konkreten Klassen</i></p>
+
+<div class="box prio-hoch"><b>Wichtigkeit:</b> <span class="stars">★★★★★</span> Sehr wichtig (2. von 5 in der Lernreihenfolge)<br>Ohne DIP gibt es kein sauberes Dependency Injection und keine einfachen Unit-Tests. Es ist die Grundlage von Seite 4.</div>
+
+<div class="box note"><b>Alltag:</b> Dein Laptop-Ladegerät hängt am USB-C-Standard, nicht an einer bestimmten Steckdosenmarke.</div>
+<div class="box merk"><b>Regel:</b> Wichtige Klassen (Fachlogik) sollen nicht von Details (SQL, SMTP) abhängen, sondern von <b>Interfaces</b>. Die Details richten sich nach dem Interface.</div>
+
+<h2>Beispiel</h2>
+<div class="cols">
+<div class="box bad"><b>Verstößt</b>
+<pre><code>class BestellService
+{
+    private SmtpMailService _mail = new SmtpMailService();
+}</code></pre>Die Fachlogik kennt das Detail (SMTP) und kann es nicht tauschen.</div>
+<div class="box good"><b>Passt</b>
+<pre><code>class BestellService
+{
+    private readonly IMailService _mail;
+    public BestellService(IMailService mail) =&gt; _mail = mail;
+}</code></pre>Der Service kennt nur den Vertrag. SMTP, Fake oder anderer Dienst sind austauschbar.</div>
+</div>
+<div class="box note"><b>Nicht verwechseln:</b> Dependency <i>Inversion</i> ist das Prinzip ("hänge von Interfaces ab"). Dependency <i>Injection</i> ist die Technik (Abhängigkeiten von außen übergeben), mit der man es umsetzt.</div>
+
+<h2>Woran erkenne ich es?</h2>
+<p class="q">Steht in der Fachlogik ein <code>new</code> für eine Datenbank, Mail oder externe API? Dann fehlt DIP.</p>
+
+<nav><a href="05a-srp.html">← S</a><a href="05b-ocp.html">Weiter: O: Open/Closed Principle →</a></nav>
+</body>
+</html>

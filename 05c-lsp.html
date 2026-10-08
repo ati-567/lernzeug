@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>L Liskov Substitution</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav><a href="05b-ocp.html">← O</a><a href="05d-isp.html">Weiter: I: Interface Segregation Principle →</a></nav>
+<h1>L: Liskov Substitution Principle</h1>
+<p><i>Ersatz muss sich wie das Original verhalten</i></p>
+
+<div class="box prio-mittel"><b>Wichtigkeit:</b> <span class="stars">★★★☆☆</span> Mittel wichtig (4. von 5 in der Lernreihenfolge)<br>Einsteiger verletzen es selten bewusst, aber wenn, entstehen schwer zu findende Fehler. Wichtig für Vererbung und eigene Fakes im Test.</div>
+
+<div class="box note"><b>Alltag:</b> Du mietest ein Auto. Egal ob VW oder Opel: Lenkrad, Gas und Bremse müssen gleich funktionieren. Ein "Auto" ohne Bremse wäre ein Betrug.</div>
+<div class="box merk"><b>Regel:</b> Wo ein Interface oder eine Basisklasse erwartet wird, muss jede Implementierung einsetzbar sein, <b>ohne dass der Aufrufer etwas merkt</b> und ohne dass etwas kaputtgeht.</div>
+
+<h2>Beispiel</h2>
+<div class="cols">
+<div class="box bad"><b>Verstößt</b>
+<pre><code>class KaputtMailService : IMailService
+{
+    public void SendeBestaetigung(Bestellung b)
+    {
+        throw new NotImplementedException();
+    }
+}</code></pre>Der Service verspricht Mails, tut aber nichts oder explodiert.</div>
+<div class="box good"><b>Passt</b>
+<pre><code>class FakeMailService : IMailService
+{
+    public Bestellung ZuletztGesendet;
+    public void SendeBestaetigung(Bestellung b)
+        =&gt; ZuletztGesendet = b;
+}</code></pre>Verhält sich im Rahmen des Vertrags korrekt. Der Aufrufer merkt keinen Unterschied.</div>
+</div>
+
+
+<h2>Woran erkenne ich es?</h2>
+<p class="q">Wirft eine Implementierung <code>NotImplementedException</code>, ignoriert sie Eingaben oder prüft der Aufrufer mit <code>is</code>/<code>as</code>, um Sonderfälle zu behandeln? Dann stimmt etwas nicht.</p>
+
+<nav><a href="05b-ocp.html">← O</a><a href="05d-isp.html">Weiter: I: Interface Segregation Principle →</a></nav>
+</body>
+</html>

@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Software-Architektur für Einsteiger</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<h1>Software-Architektur für Einsteiger</h1>
+<p>Wir folgen einem Beispiel: <b>"Bestellung anlegen"</b>. Es beginnt als Chaos und wird Schritt für Schritt aufgeräumt. Der Stoff ist in <b>zehn Lerneinheiten</b> von etwa einer Stunde aufgeteilt.</p>
+
+<h2>Roter Faden</h2>
+<div class="flow">
+  <div class="box bad">Alles in einer Datei</div><span class="arrow">→</span>
+  <div class="box">MVC</div><span class="arrow">→</span>
+  <div class="box">Services</div><span class="arrow">→</span>
+  <div class="box">DI</div><span class="arrow">→</span>
+  <div class="box">SOLID</div><span class="arrow">→</span>
+  <div class="box good">Saubere Schichten</div>
+</div>
+<p>Jeder Schritt löst ein Problem des vorherigen Schritts.</p>
+
+<h2>Einheit 1: Das Problem und MVC <small>(ca. 45 min)</small></h2>
+<table>
+<tr><th>Thema</th><th>Kernfrage</th></tr>
+<tr><td><a href="01-problem.html">1. Problemstellung</a></td><td>Warum wird Code schnell unwartbar?</td></tr>
+<tr><td><a href="02-mvc.html">2. MVC</a></td><td>Wie trenne ich Anzeige, Daten und Ablauf?</td></tr>
+</table>
+
+<h2>Einheit 2: Services und Datentransfer <small>(ca. 50 min)</small></h2>
+<table>
+<tr><th>Thema</th><th>Kernfrage</th></tr>
+<tr><td><a href="03-services.html">3. Services</a></td><td>Wohin gehört die Geschäftslogik?</td></tr>
+<tr><td><a href="03a-dtos.html">3a. DTOs und Entities</a></td><td>Was schicke ich an React, und was nicht?</td></tr>
+</table>
+
+<h2>Einheit 3: Dependency Injection, Grundlagen <small>(ca. 55 min)</small></h2>
+<table>
+<tr><th>Thema</th><th>Kernfrage</th></tr>
+<tr><td><a href="04-di.html">4. Dependency Injection</a></td><td>Wer erzeugt meine Abhängigkeiten?</td></tr>
+<tr><td><a href="04a-interfaces.html">4a. Interfaces in DI</a></td><td>Warum braucht DI Interfaces, und wann nicht?</td></tr>
+</table>
+
+<h2>Einheit 4: Lebensdauer und Tests <small>(ca. 50 min)</small></h2>
+<table>
+<tr><th>Thema</th><th>Kernfrage</th></tr>
+<tr><td><a href="04b-lebensdauer.html">4b. Lebensdauer in DI</a></td><td>Wie lange lebt ein Objekt, und wer teilt es sich?</td></tr>
+<tr><td><a href="04c-tests.html">4c. Unit-Tests mit Fakes und Mocks</a></td><td>Wie teste ich, ohne echte DB und Mail?</td></tr>
+</table>
+
+<h2>Einheit 5: SOLID <small>(ca. 65 min)</small></h2>
+<table>
+<tr><th>Thema</th><th>Kernfrage</th></tr>
+<tr><td><a href="05-solid.html">5. SOLID-Übersicht</a></td><td>Welche Regeln stecken dahinter, und wie wichtig sind sie?</td></tr>
+<tr><td><a href="05a-srp.html">S: Single Responsibility</a> ★★★★★</td><td>Ein Grund zur Änderung</td></tr>
+<tr><td><a href="05e-dip.html">D: Dependency Inversion</a> ★★★★★</td><td>Von Interfaces abhängen</td></tr>
+<tr><td><a href="05b-ocp.html">O: Open/Closed</a> ★★★☆☆</td><td>Erweitern statt ändern</td></tr>
+<tr><td><a href="05c-lsp.html">L: Liskov Substitution</a> ★★★☆☆</td><td>Ersatz muss sich korrekt verhalten</td></tr>
+<tr><td><a href="05d-isp.html">I: Interface Segregation</a> ★★☆☆☆</td><td>Kleine Interfaces</td></tr>
+</table>
+
+<h2>Einheit 6: Daten und Repository <small>(ca. 45 min)</small></h2>
+<table>
+<tr><th>Thema</th><th>Kernfrage</th></tr>
+<tr><td><a href="06a-repository.html">6a. Repository und Entity Framework</a></td><td>Wie spricht der Code mit der Datenbank?</td></tr>
+</table>
+
+<h2>Einheit 7: Validierung und Fehlerbehandlung <small>(ca. 45 min)</small></h2>
+<table>
+<tr><th>Thema</th><th>Kernfrage</th></tr>
+<tr><td><a href="06b-validierung.html">6b. Validierung und Fehlerbehandlung</a></td><td>Wo prüfe ich, und wie kommen Fehler zu React?</td></tr>
+</table>
+
+<h2>Einheit 8: Gesamtbild <small>(ca. 30 min)</small></h2>
+<table>
+<tr><th>Thema</th><th>Kernfrage</th></tr>
+<tr><td><a href="06-architektur.html">6. Architektur-Überblick</a></td><td>Wie passt alles zusammen?</td></tr>
+<tr><td><a href="07-glossar.html">Glossar</a></td><td>Was bedeutet dieser Begriff?</td></tr>
+</table>
+
+<h2>Einheit 9: Projektstruktur <small>(ca. 45 min)</small></h2>
+<table>
+<tr><th>Thema</th><th>Kernfrage</th></tr>
+<tr><td><a href="08-projektstruktur.html">8. Projektstruktur</a></td><td>Wie sieht die Solution aus (Api, Application, Domain, Infrastructure), und wohin gehört welche Klasse?</td></tr>
+</table>
+
+<h2>Einheit 10: Anti-Patterns erkennen <small>(ca. 45 min)</small></h2>
+<table>
+<tr><th>Thema</th><th>Kernfrage</th></tr>
+<tr><td><a href="09-antipatterns.html">9. Anti-Patterns</a></td><td>Woran erkenne ich Fat Controller, God Class, Service Locator und anämisches Model?</td></tr>
+</table>
+</body>
+</html>

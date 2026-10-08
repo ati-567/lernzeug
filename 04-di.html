@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>4 Dependency Injection</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav><a href="03a-dtos.html">← DTOs</a><a href="04a-interfaces.html">Weiter: Interfaces →</a></nav>
+<h1>4. Dependency Injection (DI)</h1>
+
+<div class="box note"><b>Alltag:</b> Ein Handwerker bekommt sein Werkzeug gestellt, statt es selbst zu schmieden.</div>
+<div class="box merk"><b>Merksatz:</b> Eine Klasse sagt, was sie braucht, aber baut es nicht selbst.</div>
+
+<p><b>Problem aus Seite 3:</b> Der <code>BestellService</code> erzeugt seine Abhängigkeiten selbst mit <code>new</code>. Er ist fest an konkrete Klassen gekoppelt.</p>
+
+<h2>Bild: Der Koch</h2>
+<div class="cols">
+<div class="box bad"><b>Ohne DI</b><br>Der Koch baut sich seinen Herd selbst, bevor er kochen kann. Er kann nur mit diesem einen Herd arbeiten.</div>
+<div class="box good"><b>Mit DI</b><br>Der Koch bekommt einen Herd in die Küche gestellt. Ob Gas oder Induktion, ist ihm egal. Er will nur kochen.</div>
+</div>
+
+<h2>Schritt 1: Von konkret zu abstrakt (Interface)</h2>
+<p>Der Service braucht nur etwas, das Mails senden <b>kann</b>. Wie, ist egal.</p>
+<pre><code>public interface IMailService
+{
+    void SendeBestaetigung(Bestellung b);
+}
+
+public class SmtpMailService : IMailService { ... }   // echte Mail
+public class FakeMailService : IMailService { ... }   // für Tests</code></pre>
+
+<h2>Schritt 2: Abhängigkeiten von außen übergeben</h2>
+<div class="cols">
+<div class="box bad"><b>Vorher</b>
+<pre><code>public class BestellService
+{
+    public void Anlegen(Bestellung b)
+    {
+        var mail = new SmtpMailService();
+        mail.SendeBestaetigung(b);
+    }
+}</code></pre></div>
+<div class="box good"><b>Nachher (Konstruktor-Injection)</b>
+<pre><code>public class BestellService
+{
+    private readonly IMailService _mail;
+
+    public BestellService(IMailService mail)
+    {
+        _mail = mail;
+    }
+
+    public void Anlegen(Bestellung b)
+    {
+        _mail.SendeBestaetigung(b);
+    }
+}</code></pre></div>
+</div>
+<div class="box note"><b>Vertiefung:</b> Wie Interfaces in DI funktionieren, wann man sie braucht und wann nicht, erklärt <a href="04a-interfaces.html">die nächste Seite</a>.</div>
+<p>Der Service sagt nur <b>was</b> er braucht (<code>IMailService</code>). Er weiß nicht, <b>welche</b> Klasse es ist, und kümmert sich nicht ums Erzeugen.</p>
+
+<h2>Schritt 3: Wer erzeugt dann die Objekte?</h2>
+<p>Der <b>DI-Container</b> übernimmt das. Er wird einmal beim Start konfiguriert (die "Verdrahtung"):</p>
+<pre><code>// Program.cs / Startup
+services.AddScoped&lt;IMailService, SmtpMailService&gt;();
+services.AddScoped&lt;IBestellRepository, SqlBestellRepository&gt;();
+services.AddScoped&lt;BestellService&gt;();</code></pre>
+<div class="box note"><b>Was heißt <code>AddScoped</code>?</b> Es legt fest, wie lange das Objekt lebt: hier eine Anfrage lang. Es gibt drei Varianten, die erklärt die <a href="04b-lebensdauer.html">nächste Seite</a>.</div>
+
+<div class="flow">
+  <div class="box">Container<br>(Verdrahtung)</div><span class="arrow">→ erzeugt →</span>
+  <div class="box">BestellService</div><span class="arrow">← bekommt ←</span>
+  <div class="box">SmtpMailService<br><small>als IMailService</small></div>
+</div>
+<p>Der Controller fordert im Konstruktor einfach <code>BestellService</code> an und bekommt ihn fertig zusammengebaut.</p>
+
+<h2>Der große Gewinn: Testen</h2>
+<pre><code>var fakeMail = new FakeMailService();
+var service  = new BestellService(fakeMail, new FakeRepository());
+
+service.Anlegen(new Bestellung { Menge = 20, Preis = 10 });
+
+Assert.Equal(180, fakeMail.ZuletztGesendet.Summe);   // keine echte Mail, keine DB</code></pre>
+
+<div class="box good"><b>Gewonnen:</b>
+<ul>
+  <li>Testbar ohne echte DB und ohne Mailserver.</li>
+  <li>Implementierungen austauschbar (SMTP → Mail-Dienst) an <b>einer</b> Stelle.</li>
+  <li>Abhängigkeiten sind im Konstruktor sichtbar.</li>
+</ul></div>
+
+<h2>Begriffe</h2>
+<table>
+<tr><th>Begriff</th><th>Bedeutung</th></tr>
+<tr><td>Dependency</td><td>Etwas, das eine Klasse zum Arbeiten braucht</td></tr>
+<tr><td>Injection</td><td>Es wird von außen übergeben statt selbst erzeugt</td></tr>
+<tr><td>Interface</td><td>Der "Vertrag": was kann es, ohne zu sagen wie</td></tr>
+<tr><td>Container</td><td>Baut die Objekte zusammen (Verdrahtung)</td></tr>
+<tr><td>Inversion of Control</td><td>Nicht ich erzeuge meine Helfer, sie werden mir gegeben</td></tr>
+</table>
+
+<div class="box note"><b>Typische Stolperfallen:</b> Für jede Klasse ein Interface anlegen (nur bei echtem Bedarf). <code>new</code> trotzdem im Service benutzen. Zu viele Parameter im Konstruktor (Zeichen, dass die Klasse zu viel macht).</div>
+
+<nav><a href="03a-dtos.html">← DTOs</a><a href="04a-interfaces.html">Weiter: Interfaces →</a></nav>
+</body>
+</html>

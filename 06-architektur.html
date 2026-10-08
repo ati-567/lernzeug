@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>6 Architektur-Überblick</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav><a href="06b-validierung.html">← Validierung</a><a href="08-projektstruktur.html">Weiter: Projektstruktur →</a></nav>
+<h1>6. Das Gesamtbild: Schichten</h1>
+
+<p>Wir haben Schritt für Schritt Verantwortungen getrennt. Zusammen ergibt das eine <b>Schichtenarchitektur</b>.</p>
+
+<h2>Die Schichten</h2>
+<div class="layers">
+  <div class="box"><b>Frontend (View)</b><br>React-Komponenten im Browser</div>
+  <div class="box"><b>Web-API (Controller)</b><br>ASP.NET-Controller, nimmt HTTP/JSON an</div>
+  <div class="box"><b>Anwendung / Fachlogik</b><br>Services (BestellService, RabattService)</div>
+  <div class="box"><b>Datenzugriff</b><br>Repositories (BestellRepository)</div>
+  <div class="box"><b>Extern</b><br>Datenbank, Mailserver, andere APIs</div>
+</div>
+<p><b>Regel:</b> Aufrufe gehen nur von oben nach unten. Eine untere Schicht kennt die obere nicht. Die Controller kennen keine SQL-Details, die Datenbank kennt kein React.</p>
+
+<h2>Eine Anfrage durch alle Schichten</h2>
+<div class="flow">
+  <div class="box">React<br>(Browser)</div><span class="arrow">→ JSON →</span>
+  <div class="box">Controller</div><span class="arrow">→</span>
+  <div class="box">BestellService</div><span class="arrow">→</span>
+  <div class="box">Repository</div><span class="arrow">→</span>
+  <div class="box">DB</div>
+</div>
+<p>Der <b>DI-Container</b> steht daneben und verdrahtet beim Start alle Teile miteinander. Zur Laufzeit ruft jeder nur seinen Nachbarn über ein Interface auf.</p>
+
+<h2>Rückblick: Problem → Lösung</h2>
+<table>
+<tr><th>Problem</th><th>Lösung</th></tr>
+<tr><td>Alles in einer Methode</td><td>Trennung der Zuständigkeiten</td></tr>
+<tr><td>Anzeige, Ablauf und Daten vermischt</td><td>MVC</td></tr>
+<tr><td>Fat Controller</td><td>Services (und Repositories)</td></tr>
+<tr><td>Feste Kopplung durch <code>new</code></td><td>Interfaces + Dependency Injection</td></tr>
+<tr><td>Nicht testbar</td><td>Fakes/Mocks dank DI</td></tr>
+</table>
+
+<h2>Leitfragen für den Alltag</h2>
+<ul>
+  <li>Hat diese Klasse nur <b>einen</b> Grund, sich zu ändern?</li>
+  <li>Kann ich sie testen, ohne echte DB/Mail/Netzwerk?</li>
+  <li>Kennt sie nur Dinge, die in der Schicht unter ihr liegen?</li>
+  <li>Wüsste ein Neuer, wo er eine Änderung machen muss?</li>
+</ul>
+
+<div class="box note"><b>Wichtig:</b> Architektur ist ein Werkzeug, kein Selbstzweck. Für ein 50-Zeilen-Skript braucht es keine vier Schichten. Der Aufwand lohnt sich, wenn der Code wächst, im Team entsteht und lange leben soll.</div>
+
+<h2>Wie geht es weiter?</h2>
+<ul>
+  <li>Unit-Tests mit Mocks</li>
+  <li>Repository-Pattern, DTOs</li>
+  <li>DI-Lebensdauern (Singleton / Scoped / Transient)</li>
+  <li>SOLID, Clean/Hexagonal Architecture</li>
+</ul>
+
+<nav><a href="06b-validierung.html">← Validierung</a><a href="08-projektstruktur.html">Weiter: Projektstruktur →</a></nav>
+</body>
+</html>

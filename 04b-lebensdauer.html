@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>4b Lebensdauer in DI</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav><a href="04a-interfaces.html">← Interfaces</a><a href="04c-tests.html">Weiter: Unit-Tests →</a></nav>
+<h1>4b. Lebensdauer: Singleton, Scoped, Transient</h1>
+
+<div class="box note"><b>Alltag:</b> Im Büro gibt es <b>eine</b> Kaffeemaschine für alle (Singleton). Jeder Gast bekommt <b>ein</b> Tablett für seinen Besuch (Scoped). Jeder Kaffee kommt in einem <b>neuen</b> Einwegbecher (Transient).</div>
+<div class="box merk"><b>Merksatz:</b> Die Lebensdauer legt fest, wie lange ein Objekt lebt und wer es sich teilt. Im Zweifel nimmt man <b>Scoped</b>.</div>
+
+<h2>Die Frage dahinter</h2>
+<p>Auf Seite 4 hat der Container die Objekte erzeugt. Dabei stand überall <code>AddScoped</code>. Aber wie oft erzeugt er ein Objekt? Bei jeder Anfrage neu? Nur einmal für die ganze Anwendung? Genau das stellt man mit der Lebensdauer ein.</p>
+<pre><code>services.AddSingleton&lt;IZeitProvider, ZeitProvider&gt;();   // einmal für alles
+services.AddScoped&lt;IBestellService, BestellService&gt;();   // einmal pro Anfrage
+services.AddTransient&lt;IRechnungsNummer, RechnungsNummer&gt;(); // jedes Mal neu</code></pre>
+
+<h2>Die drei Lebensdauern</h2>
+<div class="cols">
+<div class="box"><b>Singleton</b><br>Ein Objekt für die <b>gesamte Anwendung</b>. Es entsteht beim ersten Gebrauch und lebt, bis die Anwendung beendet wird. Alle teilen es sich.</div>
+<div class="box"><b>Scoped</b><br>Ein Objekt pro <b>Scope</b>. In ASP.NET ist das eine <b>HTTP-Anfrage</b>. Innerhalb der Anfrage teilen sich alle dasselbe Objekt, die nächste Anfrage bekommt ein neues.</div>
+</div>
+<div class="box"><b>Transient</b><br>Jedes Mal, wenn jemand das Objekt anfordert, wird ein <b>neues</b> erzeugt. Nichts wird geteilt.</div>
+
+<h2>Sichtbar gemacht: Wer bekommt welches Objekt?</h2>
+<p>Szenario: <b>Anna</b> und <b>Ben</b> schicken je eine Bestellung ab. Dafür braucht jede Anfrage zwei Klassen, den <code>BestellService</code> und den <code>RabattService</code>. Beide fordern dasselbe Objekt an (zum Beispiel den <code>DbContext</code>).</p>
+<p>Jedes farbige Feld ist <b>ein</b> Objekt. <b>Gleiche Farbe und gleicher Buchstabe heißen: dasselbe Objekt.</b></p>
+
+<div class="life">
+<div class="head"><b>Singleton</b>: eines für alle</div>
+<div class="persons">
+<div class="person"><div class="who">Anfrage von Anna</div>
+<div class="row"><span class="cls">BestellService</span> → <span class="chip a">Objekt A</span></div>
+<div class="row"><span class="cls">RabattService</span> → <span class="chip a">Objekt A</span></div>
+</div>
+<div class="person"><div class="who">Anfrage von Ben</div>
+<div class="row"><span class="cls">BestellService</span> → <span class="chip a">Objekt A</span></div>
+<div class="row"><span class="cls">RabattService</span> → <span class="chip a">Objekt A</span></div>
+</div>
+</div>
+<div class="foot prio-mittel"><b>Ergebnis: 1 Objekt.</b> Anna und Ben teilen sich <b>dasselbe</b> Objekt A, auch über mehrere Anfragen hinweg.</div>
+</div>
+<div class="life">
+<div class="head"><b>Scoped</b>: eines pro Anfrage</div>
+<div class="persons">
+<div class="person"><div class="who">Anfrage von Anna</div>
+<div class="row"><span class="cls">BestellService</span> → <span class="chip a">Objekt A</span></div>
+<div class="row"><span class="cls">RabattService</span> → <span class="chip a">Objekt A</span></div>
+</div>
+<div class="person"><div class="who">Anfrage von Ben</div>
+<div class="row"><span class="cls">BestellService</span> → <span class="chip b">Objekt B</span></div>
+<div class="row"><span class="cls">RabattService</span> → <span class="chip b">Objekt B</span></div>
+</div>
+</div>
+<div class="foot good"><b>Ergebnis: 2 Objekte.</b> Innerhalb einer Anfrage teilen sich beide Klassen ein Objekt. Anna und Ben bekommen jeweils ihr eigenes.</div>
+</div>
+<div class="life">
+<div class="head"><b>Transient</b>: immer ein neues</div>
+<div class="persons">
+<div class="person"><div class="who">Anfrage von Anna</div>
+<div class="row"><span class="cls">BestellService</span> → <span class="chip a">Objekt A</span></div>
+<div class="row"><span class="cls">RabattService</span> → <span class="chip b">Objekt B</span></div>
+</div>
+<div class="person"><div class="who">Anfrage von Ben</div>
+<div class="row"><span class="cls">BestellService</span> → <span class="chip c">Objekt C</span></div>
+<div class="row"><span class="cls">RabattService</span> → <span class="chip d">Objekt D</span></div>
+</div>
+</div>
+<div class="foot prio-niedrig"><b>Ergebnis: 4 Objekte.</b> Jede Klasse bekommt bei jeder Anforderung ein frisches Objekt. Nichts wird geteilt, auch nicht innerhalb einer Anfrage.</div>
+</div>
+
+<div class="box merk"><b>Zum Merken:</b> Singleton = <b>1</b> Objekt insgesamt. Scoped = <b>1</b> Objekt pro Anfrage. Transient = <b>1</b> Objekt pro Anforderung.</div>
+
+<h2>Warum ist das wichtig? Ein Beispiel</h2>
+<p>Der <code>BestellService</code> und der <code>RabattService</code> arbeiten in <b>einer Anfrage</b> mit derselben Datenbank-Verbindung (<code>DbContext</code>). So werden Änderungen zusammen gespeichert, und es gibt keine halbfertigen Bestellungen.</p>
+<div class="flow">
+  <div class="box">Anfrage</div><span class="arrow">→</span>
+  <div class="box">BestellService</div>
+  <div class="box">RabattService</div><span class="arrow">→ teilen →</span>
+  <div class="box good"><b>1</b> DbContext<br>(Scoped)</div>
+</div>
+<p>Wäre der <code>DbContext</code> ein Singleton, würden <b>alle gleichzeitigen Nutzer dieselbe Verbindung</b> teilen. Das führt zu Fehlern und durcheinandergeratenen Daten.</p>
+
+<h2>Wann nehme ich was?</h2>
+<table>
+<tr><th>Lebensdauer</th><th>Nimm es für …</th><th>Typische Beispiele</th></tr>
+<tr><td><b>Singleton</b></td><td>Dinge ohne Zustand pro Nutzer, die teuer zu erzeugen sind oder bewusst geteilt werden. <b>Muss threadsicher sein.</b></td><td>Konfiguration, Cache, Uhrzeit-Provider, Logger</td></tr>
+<tr><td><b>Scoped</b></td><td>Alles, was zu <b>einer Anfrage</b> gehört oder mit der Datenbank arbeitet. <b>Das ist der Standard.</b></td><td><code>DbContext</code>, Repositories, die meisten Services (<code>BestellService</code>), aktueller Benutzer</td></tr>
+<tr><td><b>Transient</b></td><td>Kleine, leichte Objekte ohne gemeinsamen Zustand, die jeder für sich braucht.</td><td>Einfache Hilfsklassen, Rechner, Validatoren</td></tr>
+</table>
+
+<div class="box note"><b>Faustregel:</b>
+<ul>
+  <li><b>Unsicher?</b> Scoped.</li>
+  <li><b>Greift auf die Datenbank zu?</b> Scoped.</li>
+  <li><b>Teilt sich Daten über alle Nutzer hinweg (Cache, Konfiguration)?</b> Singleton.</li>
+  <li><b>Soll jeder sein eigenes, frisches Exemplar?</b> Transient.</li>
+</ul></div>
+
+<h2>Unser Beispiel mit passender Lebensdauer</h2>
+<pre><code>// Program.cs
+services.AddDbContext&lt;ShopDbContext&gt;(...);                           // Scoped (Standard von AddDbContext)
+services.AddScoped&lt;IBestellRepository, SqlBestellRepository&gt;();      // Scoped: nutzt den DbContext
+services.AddScoped&lt;IBestellService, BestellService&gt;();               // Scoped: gehört zur Anfrage
+services.AddScoped&lt;IRabattService, RabattService&gt;();
+services.AddScoped&lt;IMailService, SmtpMailService&gt;();
+services.AddSingleton&lt;IZeitProvider, SystemZeitProvider&gt;();          // Singleton: zustandslos, überall gleich</code></pre>
+
+<h2>Die größte Falle: Singleton darf Scoped nicht festhalten</h2>
+<p>Eine Regel: <b>Ein Objekt darf nur von Objekten abhängen, die <u>mindestens genauso lange</u> leben wie es selbst.</b></p>
+<div class="cols">
+<div class="box bad"><b>Falsch</b>
+<pre><code>// Singleton lebt ewig ...
+services.AddSingleton&lt;ReportService&gt;();
+// ... hält aber einen Scoped DbContext fest
+class ReportService
+{
+    public ReportService(ShopDbContext db) { }
+}</code></pre>
+Der <code>DbContext</code> sollte nach der Anfrage sterben, bleibt aber am Leben, weil das Singleton ihn festhält. Man nennt das <b>"Captive Dependency"</b>. Er ist veraltet, und mehrere Nutzer teilen ihn.</div>
+<div class="box good"><b>Richtig</b>
+<pre><code>services.AddScoped&lt;ReportService&gt;();
+
+class ReportService
+{
+    public ReportService(ShopDbContext db) { }
+}</code></pre>
+Ein langlebiges Objekt hängt nur von gleich langlebigen oder langlebigeren Objekten ab.</div>
+</div>
+
+<table>
+<tr><th>Wer …</th><th>darf was nutzen?</th></tr>
+<tr><td>Singleton</td><td>nur Singleton</td></tr>
+<tr><td>Scoped</td><td>Scoped, Singleton, Transient</td></tr>
+<tr><td>Transient</td><td>alles</td></tr>
+</table>
+<div class="box note"><b>Praktisch:</b> Im Development-Modus prüft ASP.NET das und wirft beim Start eine Exception, wenn ein Singleton ein Scoped-Objekt anfordert. Diese Fehlermeldung nicht wegkonfigurieren, sie hilft.</div>
+
+<h2>Die zweite Falle: Zustand im Singleton</h2>
+<p>Ein Singleton wird von <b>vielen Nutzern gleichzeitig</b> verwendet. Merkt es sich etwas in einem Feld, sehen es alle.</p>
+<div class="cols">
+<div class="box bad"><b>Gefährlich</b>
+<pre><code>// Singleton!
+class WarenkorbService
+{
+    private List&lt;Artikel&gt; _artikel = new();
+    public void Hinzufuegen(Artikel a)
+        =&gt; _artikel.Add(a);
+}</code></pre>
+Alle Nutzer teilen sich <b>einen</b> Warenkorb.</div>
+<div class="box good"><b>Besser</b>
+<pre><code>// Scoped (oder Daten in DB/Session)
+class WarenkorbService
+{
+    public WarenkorbService(IWarenkorbRepository repo) { }
+}</code></pre>
+Der Zustand liegt pro Nutzer in der Datenbank.</div>
+</div>
+
+<h2>Zusammenfassung</h2>
+<table>
+<tr><th></th><th>Singleton</th><th>Scoped</th><th>Transient</th></tr>
+<tr><td>Instanzen</td><td>1 pro Anwendung</td><td>1 pro Anfrage</td><td>1 pro Anforderung</td></tr>
+<tr><td>Lebt bis</td><td>Anwendung endet</td><td>Anfrage endet</td><td>Wird nicht mehr gebraucht</td></tr>
+<tr><td>Geteilt?</td><td>Ja, mit allen</td><td>Ja, innerhalb der Anfrage</td><td>Nein</td></tr>
+<tr><td>Threadsicher nötig?</td><td><b>Ja</b></td><td>Nein</td><td>Nein</td></tr>
+<tr><td>Standardwahl?</td><td>Nein</td><td><b>Ja</b></td><td>Selten</td></tr>
+</table>
+
+<nav><a href="04a-interfaces.html">← Interfaces</a><a href="04c-tests.html">Weiter: Unit-Tests →</a></nav>
+</body>
+</html>

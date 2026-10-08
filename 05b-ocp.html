@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>O Open/Closed Principle</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav><a href="05e-dip.html">← D</a><a href="05c-lsp.html">Weiter: L: Liskov Substitution Principle →</a></nav>
+<h1>O: Open/Closed Principle</h1>
+<p><i>Erweitern, ohne Bestehendes zu ändern</i></p>
+
+<div class="box prio-mittel"><b>Wichtigkeit:</b> <span class="stars">★★★☆☆</span> Mittel wichtig (3. von 5 in der Lernreihenfolge)<br>Nützlich, sobald Code wächst (neue Rabattarten, neue Zahlarten). Im Anfang übertreibt man es leicht: erst einfach schreiben, aufteilen, wenn der zweite oder dritte <code>if</code>-Zweig kommt.</div>
+
+<div class="box note"><b>Alltag:</b> Eine Steckdosenleiste: Neue Geräte einstecken, ohne die Wand aufzustemmen.</div>
+<div class="box merk"><b>Regel:</b> Offen für Erweiterung, geschlossen für Änderung. Neues Verhalten kommt durch <b>neuen</b> Code, nicht durch Umbauen von <b>altem</b>, funktionierendem Code.</div>
+
+<h2>Beispiel</h2>
+<div class="cols">
+<div class="box bad"><b>Verstößt</b>
+<pre><code>decimal Rabatt(Bestellung b)
+{
+    if (b.Kunde == "Standard") ...
+    else if (b.Kunde == "VIP") ...
+    else if (b.Kunde == "Partner") ...
+    // jeder neue Typ: hier ändern
+}</code></pre>Jeder neue Kundentyp ändert diese Methode und kann Altes kaputt machen.</div>
+<div class="box good"><b>Passt</b>
+<pre><code>interface IRabattRegel
+{
+    decimal Berechne(Bestellung b);
+}
+class VipRabatt    : IRabattRegel { ... }
+class MengenRabatt : IRabattRegel { ... }
+// neuer Rabatt = neue Klasse</code></pre>Neuer Rabatt = neue Klasse. Bestehende Regeln bleiben unberührt.</div>
+</div>
+
+
+<h2>Woran erkenne ich es?</h2>
+<p class="q">Müssen wir für jede Neuerung dieselbe Methode wieder aufmachen (lange <code>if/else</code>- oder <code>switch</code>-Ketten)?</p>
+
+<nav><a href="05e-dip.html">← D</a><a href="05c-lsp.html">Weiter: L: Liskov Substitution Principle →</a></nav>
+</body>
+</html>

@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Glossar</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav><a href="index.html">Übersicht</a><a href="09-antipatterns.html">← Anti-Patterns</a></nav>
+<h1>Glossar: Begriffe in einfachen Worten</h1>
+
+<table>
+<tr><th>Begriff</th><th>Einfach erklärt</th><th>Seite</th></tr>
+<tr><td>Separation of Concerns</td><td>Jedes Thema (Anzeige, Logik, Daten) liegt an einer eigenen Stelle</td><td><a href="01-problem.html">1</a></td></tr>
+<tr><td>Model</td><td>Die Daten im Backend, z. B. eine Bestellung (C#-Klasse)</td><td><a href="02-mvc.html">2</a></td></tr>
+<tr><td>View</td><td>Die Anzeige, bei uns das React-Frontend</td><td><a href="02-mvc.html">2</a></td></tr>
+<tr><td>Controller</td><td>Nimmt Anfragen im Backend an (ASP.NET) und steuert den Ablauf</td><td><a href="02-mvc.html">2</a></td></tr>
+<tr><td>Fat Controller</td><td>Controller, der zu viel macht (Rabatt, SQL, Mail)</td><td><a href="02-mvc.html">2</a>, <a href="09-antipatterns.html">9</a></td></tr>
+<tr><td>Service</td><td>Klasse für einen fachlichen Ablauf ("Bestellung anlegen")</td><td><a href="03-services.html">3</a></td></tr>
+<tr><td>Repository</td><td>Klasse, die nur mit der Datenbank spricht</td><td><a href="03-services.html">3</a></td></tr>
+<tr><td>Entity</td><td>C#-Klasse, die eine Datenbanktabelle abbildet</td><td><a href="06a-repository.html">6a</a></td></tr>
+<tr><td>DbContext</td><td>Verbindung zur Datenbank in Entity Framework, merkt Änderungen (Scoped)</td><td><a href="06a-repository.html">6a</a></td></tr>
+<tr><td>ORM / EF Core</td><td>Übersetzt zwischen C#-Objekten und Tabellen</td><td><a href="06a-repository.html">6a</a></td></tr>
+<tr><td>Migration</td><td>Versionierte Änderung am Datenbank-Schema</td><td><a href="06a-repository.html">6a</a></td></tr>
+<tr><td>DTO</td><td>Schlanke Datenklasse nur für den Transport zwischen Frontend und Backend</td><td><a href="03a-dtos.html">3a</a></td></tr>
+<tr><td>Overposting</td><td>Der Aufrufer schickt Felder mit, die er nicht setzen dürfte</td><td><a href="03a-dtos.html">3a</a></td></tr>
+<tr><td>Unit-Test</td><td>Prüft eine Klasse allein, Abhängigkeiten sind ersetzt</td><td><a href="04c-tests.html">4c</a></td></tr>
+<tr><td>Arrange-Act-Assert</td><td>Aufbau eines Tests: vorbereiten, ausführen, prüfen</td><td><a href="04c-tests.html">4c</a></td></tr>
+<tr><td>Stub</td><td>Ersatz, der feste Antworten liefert</td><td><a href="04c-tests.html">4c</a></td></tr>
+<tr><td>Integrationstest</td><td>Prüft mehrere Teile zusammen, oft mit Test-Datenbank</td><td><a href="04c-tests.html">4c</a></td></tr>
+<tr><td>Statuscode</td><td>Zahl der HTTP-Antwort: 2xx ok, 4xx Anfrage falsch, 5xx Serverfehler</td><td><a href="06b-validierung.html">6b</a></td></tr>
+<tr><td>Exception-Handler</td><td>Zentrale Stelle, die Fehler in HTTP-Antworten übersetzt</td><td><a href="06b-validierung.html">6b</a></td></tr>
+<tr><td>Kopplung</td><td>Wie stark eine Klasse von einer anderen abhängt (niedrig ist gut)</td><td><a href="04-di.html">4</a></td></tr>
+<tr><td>Dependency</td><td>Etwas, das eine Klasse zum Arbeiten braucht</td><td><a href="04-di.html">4</a></td></tr>
+<tr><td>Interface</td><td>Ein Vertrag: was etwas kann, ohne zu sagen wie</td><td><a href="04a-interfaces.html">4a</a></td></tr>
+<tr><td>Implementierung</td><td>Die Klasse, die ein Interface umsetzt (das "Wie")</td><td><a href="04a-interfaces.html">4a</a></td></tr>
+<tr><td>Registrierung</td><td>Zuordnung "Interface → Klasse" im DI-Container</td><td><a href="04a-interfaces.html">4a</a></td></tr>
+<tr><td>Dependency Injection</td><td>Abhängigkeiten werden von außen übergeben, nicht selbst erzeugt</td><td><a href="04-di.html">4</a></td></tr>
+<tr><td>DI-Container</td><td>Baut die Objekte zusammen und liefert sie aus</td><td><a href="04-di.html">4</a></td></tr>
+<tr><td>Fake / Mock</td><td>Nachbau einer Abhängigkeit für Tests</td><td><a href="04c-tests.html">4c</a></td></tr>
+<tr><td>Lebensdauer</td><td>Wie lange ein vom Container erzeugtes Objekt lebt und wer es sich teilt</td><td><a href="04b-lebensdauer.html">4b</a></td></tr>
+<tr><td>Singleton</td><td>Ein Objekt für die ganze Anwendung</td><td><a href="04b-lebensdauer.html">4b</a></td></tr>
+<tr><td>Scoped</td><td>Ein Objekt pro Anfrage (Standardwahl)</td><td><a href="04b-lebensdauer.html">4b</a></td></tr>
+<tr><td>Transient</td><td>Bei jeder Anforderung ein neues Objekt</td><td><a href="04b-lebensdauer.html">4b</a></td></tr>
+<tr><td>Captive Dependency</td><td>Langlebiges Objekt hält ein kurzlebiges fest (z. B. Singleton mit DbContext)</td><td><a href="04b-lebensdauer.html">4b</a></td></tr>
+<tr><td>SRP</td><td>Eine Klasse, ein Grund zur Änderung</td><td><a href="05a-srp.html">5</a></td></tr>
+<tr><td>OCP</td><td>Erweitern statt ändern</td><td><a href="05b-ocp.html">5</a></td></tr>
+<tr><td>LSP</td><td>Ersatz-Implementierungen müssen sich korrekt verhalten</td><td><a href="05c-lsp.html">5</a></td></tr>
+<tr><td>ISP</td><td>Kleine, passende Interfaces</td><td><a href="05d-isp.html">5</a></td></tr>
+<tr><td>DIP</td><td>Von Interfaces abhängen, nicht von konkreten Klassen</td><td><a href="05e-dip.html">5</a></td></tr>
+<tr><td>Schichtenarchitektur</td><td>Code in Ebenen, Aufrufe nur nach unten</td><td><a href="06-architektur.html">6</a></td></tr>
+<tr><td>Solution / Projekt</td><td>Solution ist der Behälter, Projekte darin werden je zu einer DLL</td><td><a href="08-projektstruktur.html">8</a></td></tr>
+<tr><td>Domain</td><td>Fachlicher Kern ohne Technik-Abhängigkeiten</td><td><a href="08-projektstruktur.html">8</a></td></tr>
+<tr><td>Application (Schicht)</td><td>Abläufe und Interfaces, die sie braucht</td><td><a href="08-projektstruktur.html">8</a></td></tr>
+<tr><td>Infrastructure</td><td>Technik: Datenbank, Mail, externe APIs</td><td><a href="08-projektstruktur.html">8</a></td></tr>
+<tr><td>Composition Root</td><td>Die eine Stelle (<code>Program.cs</code>), an der Interfaces mit Klassen verbunden werden</td><td><a href="08-projektstruktur.html">8</a></td></tr>
+<tr><td>Clean / Onion / Hexagonal</td><td>Namen für: Fachlogik innen, Technik außen, Abhängigkeiten nach innen</td><td><a href="08-projektstruktur.html">8</a></td></tr>
+<tr><td>Anti-Pattern</td><td>Lösung, die praktisch aussieht, aber später Probleme macht</td><td><a href="09-antipatterns.html">9</a></td></tr>
+<tr><td>God Class</td><td>Klasse, die zu viel weiß und kann</td><td><a href="09-antipatterns.html">9</a></td></tr>
+<tr><td>Service Locator</td><td>Abhängigkeiten heimlich aus dem Container holen statt im Konstruktor anzufordern</td><td><a href="09-antipatterns.html">9</a></td></tr>
+<tr><td>Anämisches Model</td><td>Entity nur mit Daten, Regeln liegen verstreut in Services</td><td><a href="09-antipatterns.html">9</a></td></tr>
+</table>
+
+<nav><a href="index.html">Übersicht</a><a href="09-antipatterns.html">← Anti-Patterns</a></nav>
+</body>
+</html>

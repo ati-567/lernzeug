@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>5 SOLID Übersicht</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav><a href="04c-tests.html">← Unit-Tests</a><a href="05a-srp.html">Weiter: S, Single Responsibility →</a></nav>
+<h1>5. SOLID: Die fünf Prinzipien dahinter</h1>
+
+<div class="box note"><b>Alltag:</b> Verkehrsregeln: Man kann ohne sie fahren, aber sie verhindern Chaos, sobald viele unterwegs sind.</div>
+<div class="box merk"><b>Merksatz:</b> Wir haben die Prinzipien auf den Seiten 1 bis 4 schon angewendet, ohne ihre Namen zu nennen. SOLID sind nur die Namen dafür.</div>
+
+<h2>Wie wichtig ist was?</h2>
+<p>Nicht alle fünf sind gleich wichtig für den Einstieg. Wir behandeln sie deshalb nach Wichtigkeit, nicht nach Buchstaben.</p>
+<table>
+<tr><th>Reihenfolge</th><th>Buchstabe</th><th>Prinzip</th><th>In einem Satz</th><th>Einstufung</th><th></th></tr>
+<tr><td>1</td><td><b>S</b></td><td><a href="05a-srp.html">Single Responsibility Principle</a></td><td>Eine Klasse, ein Grund zur Änderung</td><td class="stars">★★★★★</td><td>Sehr wichtig</td></tr>
+<tr><td>2</td><td><b>D</b></td><td><a href="05e-dip.html">Dependency Inversion Principle</a></td><td>Von Interfaces abhängen, nicht von konkreten Klassen</td><td class="stars">★★★★★</td><td>Sehr wichtig</td></tr>
+<tr><td>3</td><td><b>O</b></td><td><a href="05b-ocp.html">Open/Closed Principle</a></td><td>Erweitern, ohne Bestehendes zu ändern</td><td class="stars">★★★☆☆</td><td>Mittel wichtig</td></tr>
+<tr><td>4</td><td><b>L</b></td><td><a href="05c-lsp.html">Liskov Substitution Principle</a></td><td>Ersatz muss sich wie das Original verhalten</td><td class="stars">★★★☆☆</td><td>Mittel wichtig</td></tr>
+<tr><td>5</td><td><b>I</b></td><td><a href="05d-isp.html">Interface Segregation Principle</a></td><td>Kleine, passende Interfaces</td><td class="stars">★★☆☆☆</td><td>Gut zu wissen</td></tr>
+</table>
+
+<div class="cols">
+<div class="box prio-hoch"><b>★★★★★ Sehr wichtig</b><br>SRP und DIP. Diese beiden braucht man jeden Tag. Wer nur zwei Prinzipien mitnimmt, nimmt diese.</div>
+<div class="box prio-mittel"><b>★★★☆☆ Mittel</b><br>OCP und LSP. Wichtig, sobald der Code wächst oder Vererbung im Spiel ist.</div>
+</div>
+<div class="box prio-niedrig"><b>★★☆☆☆ Gut zu wissen</b><br>ISP. Ergibt sich meist von selbst, wenn man SRP beachtet.</div>
+
+<h2>Wie hängt es mit dem Gelernten zusammen?</h2>
+<table>
+<tr><th>Gelernt</th><th>Prinzip</th></tr>
+<tr><td>Trennung Controller / Service / Repository (Seite 3)</td><td><a href="05a-srp.html">S</a></td></tr>
+<tr><td>Konstruktor-Injection mit Interfaces (Seite 4)</td><td><a href="05e-dip.html">D</a></td></tr>
+<tr><td>Neue Rabattregel = neue Klasse</td><td><a href="05b-ocp.html">O</a></td></tr>
+<tr><td>Fake-Mail im Test statt echter Mail</td><td><a href="05c-lsp.html">L</a></td></tr>
+<tr><td><code>IMailService</code> statt großem Benachrichtigungs-Interface</td><td><a href="05d-isp.html">I</a></td></tr>
+</table>
+
+<div class="box note"><b>Wichtig:</b> Das sind Leitlinien, keine Gesetze. Wer sie überall maximal anwendet, bekommt zu viele Klassen. Im Zweifel: erst einfach schreiben, dann aufteilen, wenn es weh tut.</div>
+
+<nav><a href="04c-tests.html">← Unit-Tests</a><a href="05a-srp.html">Weiter: S, Single Responsibility →</a></nav>
+</body>
+</html>

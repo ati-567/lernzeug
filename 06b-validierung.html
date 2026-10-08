@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>6b Validierung und Fehler</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav><a href="06a-repository.html">← Repository</a><a href="06-architektur.html">Weiter: Architektur →</a></nav>
+<h1>6b. Validierung und Fehlerbehandlung</h1>
+
+<div class="box note"><b>Alltag:</b> Am Flughafen wird mehrfach geprüft: beim Check-in, bei der Sicherheitskontrolle, am Gate. Jede Stelle prüft etwas anderes, und auf die letzte kann man sich nicht verlassen, wenn die erste fehlt.</div>
+<div class="box merk"><b>Merksatz:</b> React prüft für den Komfort, das Backend prüft für die Sicherheit. Auf die Prüfung im Frontend darf sich das Backend nie verlassen.</div>
+
+<h2>Die Frage</h2>
+<p>Auf Seite 2 stand: Geschäftsregeln gehören nicht ins React-Frontend. Aber wo prüft man dann, und wie erfährt der Benutzer, was falsch war?</p>
+
+<h2>Wer prüft was?</h2>
+<div class="layers">
+  <div class="box"><b>1. React:</b> Komfort. "Das ist keine E-Mail", sofort beim Tippen.</div>
+  <div class="box"><b>2. Controller / DTO:</b> Form. Pflichtfelder, Länge, Format. Passiert vor der Fachlogik.</div>
+  <div class="box"><b>3. Service:</b> Fachregeln. "Bestellmenge darf das Lager nicht übersteigen."</div>
+  <div class="box"><b>4. Datenbank:</b> Letzte Absicherung. Pflichtspalten, Eindeutigkeit, Fremdschlüssel.</div>
+</div>
+<table>
+<tr><th>Ebene</th><th>Zweck</th><th>Darf man darauf verzichten?</th></tr>
+<tr><td>React</td><td>Schnelles Feedback, weniger unnötige Anfragen</td><td>Ja, es ist nur Komfort</td></tr>
+<tr><td>DTO / Controller</td><td>Offensichtlich kaputte Eingaben abweisen</td><td>Nein</td></tr>
+<tr><td>Service</td><td>Regeln der Fachlichkeit</td><td>Nein</td></tr>
+<tr><td>Datenbank</td><td>Letzte Verteidigung gegen Fehler im Code</td><td>Nein</td></tr>
+</table>
+<div class="box bad"><b>Warum nicht nur React?</b> Jeder kann die Anfrage am Frontend vorbei selbst schicken (Postman, curl, Browser-Konsole). Eine Prüfung im Browser ist wie ein Schild "Bitte nicht eintreten" ohne Tür.</div>
+
+<h2>Ebene 2: Form-Prüfung am DTO</h2>
+<p>Das Eingabe-DTO (siehe <a href="03a-dtos.html">DTOs</a>) bekommt Regeln als Attribute:</p>
+<pre><code>public class BestellungAnlegenDto
+{
+    [Required, EmailAddress]
+    public string Email { get; set; }
+
+    [Range(1, 1000)]
+    public int Menge { get; set; }
+}</code></pre>
+<p>Mit <code>[ApiController]</code> am Controller prüft ASP.NET das <b>automatisch</b>. Ist etwas falsch, wird der Controller gar nicht erst aufgerufen, und es kommt direkt ein <b>400 Bad Request</b> zurück.</p>
+<pre><code>HTTP 400
+{
+  "title": "One or more validation errors occurred.",
+  "errors": {
+    "Email": [ "The Email field is not a valid e-mail address." ],
+    "Menge": [ "The field Menge must be between 1 and 1000." ]
+  }
+}</code></pre>
+
+<h2>Ebene 3: Fachregeln im Service</h2>
+<p>Manche Regeln brauchen Daten oder Zusammenhänge. "Genug Lagerbestand?" kann man nicht mit einem Attribut prüfen. Das gehört in den Service.</p>
+<pre><code>public async Task&lt;Bestellung&gt; AnlegenAsync(string email, int menge)
+{
+    var lager = await _lagerRepo.BestandAsync();
+    if (menge &gt; lager)
+        throw new FachlicherFehler("Nicht genug auf Lager.");
+
+    // ... Rabatt, speichern, Mail ...
+}</code></pre>
+<div class="box note"><b>Wichtig:</b> Der Service weiß nichts von HTTP. Er wirft einen <b>fachlichen</b> Fehler. Die Übersetzung in einen Statuscode passiert weiter außen.</div>
+
+<h2>Statuscodes: Was bedeutet was?</h2>
+<table>
+<tr><th>Code</th><th>Name</th><th>Bedeutung</th><th>Wer ist schuld?</th></tr>
+<tr><td><b>200</b></td><td>OK</td><td>Hat geklappt</td><td></td></tr>
+<tr><td><b>201</b></td><td>Created</td><td>Neu angelegt</td><td></td></tr>
+<tr><td><b>400</b></td><td>Bad Request</td><td>Eingabe ungültig</td><td>Aufrufer</td></tr>
+<tr><td><b>401</b></td><td>Unauthorized</td><td>Nicht angemeldet</td><td>Aufrufer</td></tr>
+<tr><td><b>403</b></td><td>Forbidden</td><td>Angemeldet, aber nicht erlaubt</td><td>Aufrufer</td></tr>
+<tr><td><b>404</b></td><td>Not Found</td><td>Gibt es nicht</td><td>Aufrufer</td></tr>
+<tr><td><b>409</b></td><td>Conflict</td><td>Passt gerade nicht zum Zustand, z. B. Duplikat</td><td>Aufrufer</td></tr>
+<tr><td><b>500</b></td><td>Internal Server Error</td><td>Unerwarteter Fehler im Backend</td><td>Wir</td></tr>
+</table>
+<div class="box note"><b>Merke:</b> <b>4xx</b> heißt "Anfrage war falsch", <b>5xx</b> heißt "wir haben einen Fehler gemacht".</div>
+
+<h2>Fehler zentral behandeln</h2>
+<div class="cols">
+<div class="box bad"><b>Vorher</b>
+<pre><code>[HttpPost]
+public IActionResult Anlegen(...)
+{
+    try { ... }
+    catch (FachlicherFehler e)
+    { return BadRequest(e.Message); }
+    catch (NichtGefunden e)
+    { return NotFound(); }
+    catch (Exception e)
+    { return StatusCode(500); }
+}</code></pre>
+In jedem Controller derselbe try/catch.</div>
+<div class="box good"><b>Nachher</b>
+<pre><code>[HttpPost]
+public async Task&lt;IActionResult&gt; Anlegen(
+    BestellungAnlegenDto dto)
+{
+    var b = await _service.AnlegenAsync(
+        dto.Email, dto.Menge);
+    return Ok(b);
+}</code></pre>
+Der Controller bleibt schlank, die Fehler fängt eine zentrale Stelle.</div>
+</div>
+<p>Diese zentrale Stelle ist ein <b>Exception-Handler</b> (Middleware). Er läuft vor allen Controllern und übersetzt Fehler einmalig in HTTP-Antworten:</p>
+<pre><code>app.UseExceptionHandler(a =&gt; a.Run(async ctx =&gt;
+{
+    var fehler = ctx.Features.Get&lt;IExceptionHandlerFeature&gt;()?.Error;
+
+    (int status, string text) = fehler switch
+    {
+        FachlicherFehler f =&gt; (400, f.Message),
+        NichtGefunden n    =&gt; (404, n.Message),
+        _                  =&gt; (500, "Es ist ein Fehler aufgetreten.")
+    };
+
+    ctx.Response.StatusCode = status;
+    await ctx.Response.WriteAsJsonAsync(new { title = text });
+}));</code></pre>
+<div class="box bad"><b>Achtung:</b> Bei 500 nie die echte Fehlermeldung oder den Stack-Trace an den Browser schicken. Das verrät Interna. Das Detail gehört ins <b>Log</b>, der Benutzer bekommt einen allgemeinen Text.</div>
+
+<h2>Und in React?</h2>
+<p>React liest den Statuscode und zeigt etwas Passendes an.</p>
+<pre><code>async function absenden(daten) {
+  const res = await fetch("/api/bestellungen", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(daten),
+  });
+
+  if (res.ok) {
+    setBestellung(await res.json());
+    return;
+  }
+
+  if (res.status === 400) {
+    const fehler = await res.json();
+    setFehler(fehler.errors ?? { allgemein: [fehler.title] });   // Fehler an die Felder
+  } else {
+    setMeldung("Etwas ist schiefgelaufen. Bitte später erneut versuchen.");
+  }
+}</code></pre>
+<ul>
+  <li><b>400:</b> Fehler bei den passenden Feldern anzeigen ("Menge muss zwischen 1 und 1000 liegen").</li>
+  <li><b>401 / 403:</b> Zur Anmeldung leiten oder "Keine Berechtigung" zeigen.</li>
+  <li><b>404:</b> "Nicht gefunden".</li>
+  <li><b>500 / Netzwerkfehler:</b> Freundliche allgemeine Meldung, ohne Details.</li>
+</ul>
+
+<h2>Gesamtbild: Eine fehlerhafte Anfrage</h2>
+<div class="flow">
+  <div class="box">React<br>schickt Menge 0</div><span class="arrow">→</span>
+  <div class="box">DTO-Prüfung<br><b>400</b></div><span class="arrow">→</span>
+  <div class="box">React zeigt<br>Fehler am Feld</div>
+</div>
+<div class="flow">
+  <div class="box">React<br>Menge 5000</div><span class="arrow">→</span>
+  <div class="box">DTO ok</div><span class="arrow">→</span>
+  <div class="box">Service: nicht genug Lager<br>→ <b>400</b></div><span class="arrow">→</span>
+  <div class="box">React zeigt<br>Meldung</div>
+</div>
+
+<h2>Zusammenfassung</h2>
+<table>
+<tr><th>Frage</th><th>Antwort</th></tr>
+<tr><td>Wo prüfe ich Format und Pflichtfelder?</td><td>Am Eingabe-DTO mit Attributen, automatisch durch <code>[ApiController]</code></td></tr>
+<tr><td>Wo prüfe ich Fachregeln?</td><td>Im Service, ohne HTTP-Wissen</td></tr>
+<tr><td>Wer wandelt Fehler in Statuscodes um?</td><td>Zentraler Exception-Handler</td></tr>
+<tr><td>Was bekommt der Benutzer bei 500?</td><td>Allgemeine Meldung, Details nur im Log</td></tr>
+<tr><td>Reicht Validierung in React?</td><td>Nein, das ist nur Komfort</td></tr>
+</table>
+
+<nav><a href="06a-repository.html">← Repository</a><a href="06-architektur.html">Weiter: Architektur →</a></nav>
+</body>
+</html>

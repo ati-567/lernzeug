@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S Single Responsibility</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav><a href="05-solid.html">← Übersicht SOLID</a><a href="05e-dip.html">Weiter: D: Dependency Inversion Principle →</a></nav>
+<h1>S: Single Responsibility Principle</h1>
+<p><i>Eine Klasse, ein Grund zur Änderung</i></p>
+
+<div class="box prio-hoch"><b>Wichtigkeit:</b> <span class="stars">★★★★★</span> Sehr wichtig (1. von 5 in der Lernreihenfolge)<br>Das ist das Prinzip, das du jeden Tag anwendest. Fast jeder Code-Review-Kommentar "das gehört woanders hin" ist ein SRP-Thema. Wer nur ein Prinzip lernt, lernt dieses.</div>
+
+<div class="box note"><b>Alltag:</b> Ein Schweizer Taschenmesser kann alles, aber nichts richtig gut. In der Küche hat jedes Werkzeug eine Aufgabe.</div>
+<div class="box merk"><b>Regel:</b> Eine Klasse soll nur <b>einen Grund</b> haben, sich zu ändern.</div>
+
+<h2>Beispiel</h2>
+<div class="cols">
+<div class="box bad"><b>Verstößt</b>
+<pre><code>class BestellService
+{
+    void Anlegen(...)   { }
+    decimal Rabatt(...) { }
+    void SendeMail(...) { }
+    void SchreibeSql(...) { }
+}</code></pre>Ändert sich Rabatt, Mail <i>oder</i> DB, muss dieselbe Klasse angefasst werden.</div>
+<div class="box good"><b>Passt</b>
+<pre><code>class BestellService    { }
+class RabattService     { }
+class MailService       { }
+class BestellRepository { }</code></pre>Jede Änderung hat genau <b>einen</b> Ort.</div>
+</div>
+
+
+<h2>Woran erkenne ich es?</h2>
+<p class="q">Kannst du die Aufgabe der Klasse in einem Satz <b>ohne "und"</b> beschreiben? Wenn nicht, macht sie vermutlich zu viel.</p>
+
+<nav><a href="05-solid.html">← Übersicht SOLID</a><a href="05e-dip.html">Weiter: D: Dependency Inversion Principle →</a></nav>
+</body>
+</html>

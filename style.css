@@ -1,0 +1,41 @@
+body { font-family: system-ui, sans-serif; max-width: 860px; margin: 2rem auto; padding: 0 1rem; line-height: 1.6; color: #222; background: #fff; }
+h1 { border-bottom: 2px solid #222; padding-bottom: .3rem; }
+h2 { margin-top: 2rem; }
+nav { display: flex; justify-content: space-between; margin: 1rem 0; font-size: .95rem; }
+a { color: #0645ad; }
+pre { background: #f4f4f4; border: 1px solid #ddd; padding: .8rem; overflow-x: auto; border-radius: 4px; }
+code { font-family: ui-monospace, Consolas, monospace; font-size: .9rem; }
+.box { border: 2px solid #222; padding: .6rem 1rem; border-radius: 4px; margin: .5rem 0; }
+.bad { border-color: #b00020; background: #fdecee; }
+.good { border-color: #1b7a34; background: #e9f6ec; }
+.note { border-color: #888; background: #f7f7f7; }
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: 1rem 0; }
+.flow .box { margin: 0; text-align: center; min-width: 110px; background: #fff; }
+.flow .arrow { font-size: 1.4rem; }
+.layers .box { text-align: center; margin: 0; border-bottom-width: 0; }
+.layers .box:last-child { border-bottom-width: 2px; }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+@media (max-width: 640px) { .cols { grid-template-columns: 1fr; } }
+table { border-collapse: collapse; width: 100%; }
+td, th { border: 1px solid #aaa; padding: .4rem .6rem; text-align: left; }
+th { background: #eee; }
+.q { font-weight: bold; }
+.merk { border-color: #1b4f9c; background: #eaf1fb; }
+.stars { font-size: 1.2rem; letter-spacing: .1rem; }
+.prio-hoch { border-color: #1b7a34; background: #e9f6ec; }
+.prio-mittel { border-color: #b8860b; background: #fff8e1; }
+.prio-niedrig { border-color: #888; background: #f7f7f7; }
+.life { border: 2px solid #222; border-radius: 4px; margin: .8rem 0; }
+.life > .head { padding: .4rem .8rem; background: #eee; border-bottom: 2px solid #222; }
+.life .persons { display: grid; grid-template-columns: 1fr 1fr; }
+.life .person { padding: .6rem .8rem; }
+.life .person + .person { border-left: 2px dashed #888; }
+.life .person .who { font-weight: bold; margin-bottom: .4rem; }
+.life .row { display: flex; align-items: center; gap: .5rem; margin: .3rem 0; }
+.life .row .cls { min-width: 8.5rem; }
+.life .foot { padding: .4rem .8rem; border-top: 2px solid #222; }
+.chip { display: inline-block; min-width: 4.2rem; text-align: center; padding: .1rem .5rem; border: 2px solid #222; border-radius: 4px; font-weight: bold; }
+.chip.a { background: #cfe3ff; }
+.chip.b { background: #ffe0b3; }
+.chip.c { background: #d4f0c8; }
+.chip.d { background: #f6cfe6; }

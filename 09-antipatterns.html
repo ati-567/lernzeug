@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>9 Anti-Patterns</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav><a href="08-projektstruktur.html">← Projektstruktur</a><a href="07-glossar.html">Glossar →</a></nav>
+<h1>9. Anti-Patterns erkennen</h1>
+
+<div class="box note"><b>Alltag:</b> Ein Arzt kennt typische Krankheitsbilder. Wer "Fieber, Husten, Gliederschmerzen" hört, denkt sofort an Grippe. Anti-Patterns sind die typischen Krankheitsbilder von Code. Wer sie kennt, erkennt sie früh.</div>
+<div class="box merk"><b>Merksatz:</b> Ein Anti-Pattern ist eine Lösung, die auf den ersten Blick praktisch aussieht, aber später Probleme macht. Man erkennt sie an festen Symptomen.</div>
+
+<h2>Die vier Kandidaten</h2>
+<table>
+<tr><th>Anti-Pattern</th><th>Kurz gesagt</th><th>Verletzt</th><th>Heilmittel</th></tr>
+<tr><td><a href="#fat">Fat Controller</a></td><td>Controller macht alles</td><td><a href="05a-srp.html">SRP</a></td><td><a href="03-services.html">Services</a></td></tr>
+<tr><td><a href="#god">God Class</a></td><td>Eine Klasse weiß und kann alles</td><td><a href="05a-srp.html">SRP</a>, <a href="05b-ocp.html">OCP</a></td><td>Aufteilen nach Verantwortung</td></tr>
+<tr><td><a href="#locator">Service Locator</a></td><td>Abhängigkeiten heimlich aus dem Container holen</td><td><a href="05e-dip.html">DIP</a></td><td><a href="04-di.html">Konstruktor-Injection</a></td></tr>
+<tr><td><a href="#anaemisch">Anämisches Model</a></td><td>Daten ohne Verhalten, Logik überall verstreut</td><td>Kapselung</td><td>Regeln in die Entity</td></tr>
+</table>
+<div class="box note"><b>Wichtig:</b> Ein Anti-Pattern ist kein Verbot und kein Beweis für schlechten Code. Es ist ein <b>Warnsignal</b>: "Hier lohnt sich ein genauer Blick." Die Zahlen in den Checklisten sind Richtwerte, keine harten Grenzen.</div>
+
+<h2 id="fat">1. Fat Controller</h2>
+<div class="box note"><b>Alltag:</b> Ein Kellner, der auch kocht, abrechnet und den Einkauf macht. Bei Betrieb bricht alles zusammen.</div>
+
+<h3>So sieht es aus</h3>
+<pre><code>[HttpPost]
+public IActionResult Anlegen(BestellungAnlegenDto dto)
+{
+    if (dto.Email == null || !dto.Email.Contains("@"))
+        return BadRequest("Ungültig");
+
+    var summe = dto.Menge * 10m;
+    if (dto.Menge &gt; 10) summe *= 0.9m;
+
+    using var cmd = new SqlCommand("INSERT INTO ...", _connection);
+    cmd.ExecuteNonQuery();
+
+    var smtp = new SmtpClient("mail.firma.de");
+    smtp.Send("shop@firma.de", dto.Email, "Danke", "Summe: " + summe);
+
+    return Ok(summe);
+}</code></pre>
+
+<h3>Erkenne ich es so</h3>
+<ul>
+  <li>Im Controller stehen <code>if</code>-Ketten mit <b>Fachregeln</b> (Rabatt, Lager, Preise).</li>
+  <li>Im Controller stehen <code>SqlCommand</code>, <code>DbContext</code>, <code>SmtpClient</code> oder <code>new</code> auf Technikklassen.</li>
+  <li>Die Methode ist länger als ein Bildschirm.</li>
+  <li>Der Controller hat viele <code>using</code>-Zeilen auf Technik (Datenbank, Mail, Dateien).</li>
+  <li>Dieselbe Logik soll von einer zweiten Stelle genutzt werden, und man kopiert sie.</li>
+  <li>Tests brauchen einen laufenden Webserver.</li>
+</ul>
+
+<h3>Warum schlecht</h3>
+<p>Fachlogik ist an HTTP gebunden, nicht wiederverwendbar und kaum testbar. Zwei Leute ändern dieselbe Datei.</p>
+
+<h3>Besser</h3>
+<pre><code>[HttpPost]
+public async Task&lt;IActionResult&gt; Anlegen(BestellungAnlegenDto dto)
+{
+    var b = await _service.AnlegenAsync(dto.Email, dto.Menge);
+    return Ok(new BestellungDto { Id = b.Id, Summe = b.Summe });
+}</code></pre>
+<p>Der Controller macht nur drei Dinge: <b>annehmen, weiterreichen, antworten</b>. Alles andere gehört in Services.</p>
+
+<h2 id="god">2. God Class</h2>
+<div class="box note"><b>Alltag:</b> Der Kollege, den man für alles fragen muss, weil nur er Bescheid weiß. Fällt er aus, steht alles still, und jeder Wunsch landet bei ihm.</div>
+
+<h3>So sieht es aus</h3>
+<pre><code>public class KundenManager
+{
+    public void Anlegen(Kunde k) { ... }
+    public void Speichern(Kunde k) { /* SQL */ }
+    public decimal BerechneBonus(Kunde k) { ... }
+    public void SendeNewsletter(Kunde k) { /* SMTP */ }
+    public string ErzeugeRechnungPdf(Kunde k) { ... }
+    public bool PruefeKreditwuerdigkeit(Kunde k) { ... }
+    public void ExportiereNachExcel(List&lt;Kunde&gt; l) { ... }
+    // ... 40 weitere Methoden
+}</code></pre>
+
+<h3>Erkenne ich es so</h3>
+<ul>
+  <li>Der Name endet auf <b>Manager, Helper, Utils, Handler, Processor</b> oder <b>Common</b>, oder er sagt nichts ("Service" ohne Thema).</li>
+  <li>Die Klasse hat <b>Hunderte oder Tausende Zeilen</b> und sehr viele Methoden.</li>
+  <li>Man kann ihre Aufgabe <b>nicht ohne "und"</b> beschreiben.</li>
+  <li>Der Konstruktor hat <b>viele Parameter</b> (fünf oder mehr), oder die Klasse erzeugt vieles selbst.</li>
+  <li>Sie wird bei <b>fast jedem Ticket</b> geändert, und im Team gibt es ständig Merge-Konflikte darin.</li>
+  <li>Fast jede andere Klasse hängt von ihr ab.</li>
+  <li>Beim Testen muss man ein Dutzend Abhängigkeiten nachbauen.</li>
+</ul>
+
+<h3>Warum schlecht</h3>
+<p>Jede Änderung kann irgendwo etwas anderes kaputt machen. Niemand überblickt die Klasse, und sie wächst weiter, weil es der "bekannte Ort" ist.</p>
+
+<h3>Besser</h3>
+<div class="cols">
+<div class="box bad"><b>Vorher</b>
+<pre><code>KundenManager
+  Speichern
+  BerechneBonus
+  SendeNewsletter
+  ErzeugeRechnungPdf
+  PruefeKredit
+  ExportiereExcel</code></pre></div>
+<div class="box good"><b>Nachher</b>
+<pre><code>KundenRepository
+BonusService
+NewsletterService
+RechnungService
+KreditPruefung
+KundenExport</code></pre></div>
+</div>
+<p>Aufteilen nach <b>Verantwortung</b>, nicht nach Zeilenzahl. Jede neue Klasse bekommt einen Namen, der ihre Aufgabe sagt. Gehe schrittweise vor: erst eine Verantwortung herauslösen, Tests grün halten, dann die nächste.</p>
+
+<h2 id="locator">3. Service Locator</h2>
+<div class="box note"><b>Alltag:</b> Ein Koch, der heimlich ins Lager geht und holt, was er braucht. Von außen sieht niemand, welche Zutaten das Gericht wirklich braucht, bis es plötzlich fehlt.</div>
+
+<h3>So sieht es aus</h3>
+<pre><code>public class BestellService
+{
+    private readonly IServiceProvider _provider;
+
+    public BestellService(IServiceProvider provider)
+        =&gt; _provider = provider;
+
+    public void Anlegen(Bestellung b)
+    {
+        var mail = _provider.GetRequiredService&lt;IMailService&gt;();   // heimlich geholt
+        var repo = _provider.GetRequiredService&lt;IBestellRepository&gt;();
+
+        repo.Speichern(b);
+        mail.SendeBestaetigung(b);
+    }
+}</code></pre>
+<p>Das funktioniert und nutzt sogar den Container. Aber es ist <b>keine echte Dependency Injection</b>.</p>
+
+<h3>Erkenne ich es so</h3>
+<ul>
+  <li>Im Konstruktor steht <code>IServiceProvider</code>, <code>IContainer</code> oder eine statische Klasse wie <code>ServiceLocator.Get&lt;T&gt;()</code>.</li>
+  <li>Im Code stehen Aufrufe wie <code>GetService&lt;T&gt;()</code> oder <code>GetRequiredService&lt;T&gt;()</code> mitten in der Fachlogik.</li>
+  <li>Man sieht an der Klasse von außen <b>nicht</b>, was sie braucht.</li>
+  <li>Im Test fehlt eine Abhängigkeit und man erfährt es erst <b>zur Laufzeit</b>, mit einer Exception tief im Ablauf.</li>
+  <li>Für Tests muss man einen ganzen Container aufbauen, statt einfach Fakes zu übergeben.</li>
+</ul>
+
+<h3>Warum schlecht</h3>
+<p>Die Abhängigkeiten sind versteckt. Der Compiler hilft nicht, und fehlende Registrierungen fallen erst beim Ausführen auf. Das widerspricht dem Kern von DI: "Eine Klasse sagt, was sie braucht."</p>
+
+<h3>Besser</h3>
+<pre><code>public class BestellService
+{
+    private readonly IMailService _mail;
+    private readonly IBestellRepository _repo;
+
+    public BestellService(IMailService mail, IBestellRepository repo)
+    {
+        _mail = mail;
+        _repo = repo;
+    }
+}</code></pre>
+<p>Jetzt sieht man im Konstruktor sofort, was die Klasse braucht. Im Test genügen zwei Fakes.</p>
+
+<div class="box note"><b>Ausnahmen:</b> An der <b>Composition Root</b> (<code>Program.cs</code>), in Middleware oder Fabriken, die zur Laufzeit entscheiden, welche Umsetzung gebraucht wird, ist der Zugriff auf den Container in Ordnung. In normaler Fachlogik nicht. Auch das Gegenteil, zu viele Konstruktor-Parameter, ist ein Warnsignal, aber kein Grund für einen Locator. Dann hat die Klasse zu viele Aufgaben (siehe God Class).</div>
+
+<h2 id="anaemisch">4. Anämisches Model</h2>
+<div class="box note"><b>Alltag:</b> Ein Auto, das nur aus Karosserie besteht. Alle Funktionen (Lenken, Bremsen) sitzen in der Werkstatt nebenan, und jeder Mechaniker macht es ein bisschen anders.</div>
+
+<h3>So sieht es aus</h3>
+<pre><code>// Das Model: nur Felder, kein Verhalten
+public class Bestellung
+{
+    public int Id { get; set; }
+    public int Menge { get; set; }
+    public decimal Summe { get; set; }
+    public string Status { get; set; }
+}
+
+// Alle Regeln liegen verstreut in Services
+public class BestellService
+{
+    public void Bezahlen(Bestellung b)
+    {
+        if (b.Status == "Storniert") throw new Exception("...");
+        b.Status = "Bezahlt";
+    }
+}
+
+public class RechnungService
+{
+    public void Erstellen(Bestellung b)
+    {
+        if (b.Status == "Storniert") return;   // dieselbe Regel, nochmal
+        ...
+    }
+}</code></pre>
+
+<h3>Erkenne ich es so</h3>
+<ul>
+  <li>Die Entity besteht nur aus <code>get; set;</code>, <b>ohne eine einzige Methode</b> mit Fachlogik.</li>
+  <li>Alle Eigenschaften sind von überall änderbar (<code>public set</code>).</li>
+  <li>Dieselbe Regel (<code>if (b.Status == "Storniert")</code>) steht an <b>mehreren Stellen</b> in verschiedenen Services.</li>
+  <li>Services sind voller Code, der <b>fremde Felder</b> abfragt und ändert: <code>b.Menge</code>, <code>b.Status</code>, <code>b.Summe</code>.</li>
+  <li>Ein Objekt kann in einen <b>ungültigen Zustand</b> geraten (<code>Menge = -5</code>, <code>Summe</code> passt nicht zur Menge), und niemand schützt es.</li>
+</ul>
+
+<h3>Warum schlecht</h3>
+<p>Wenn sich eine Regel ändert, muss man alle Stellen kennen, die sie benutzen. Vergisst man eine, entstehen Fehler. Das Objekt kann sich selbst nicht gegen falsche Werte schützen.</p>
+
+<h3>Besser: Regeln in die Entity</h3>
+<pre><code>public class Bestellung
+{
+    public int Id { get; private set; }
+    public int Menge { get; private set; }
+    public decimal Summe { get; private set; }
+    public BestellStatus Status { get; private set; }
+
+    public void Bezahlen()
+    {
+        if (Status == BestellStatus.Storniert)
+            throw new FachlicherFehler("Stornierte Bestellung kann nicht bezahlt werden.");
+        Status = BestellStatus.Bezahlt;
+    }
+
+    public void MengeAendern(int neueMenge)
+    {
+        if (neueMenge &lt;= 0) throw new FachlicherFehler("Menge muss positiv sein.");
+        Menge = neueMenge;
+    }
+}</code></pre>
+<p>Jetzt steht die Regel an <b>einer</b> Stelle, und die Bestellung kann nicht mehr in einen ungültigen Zustand geraten. Der Service sagt nur noch <code>bestellung.Bezahlen()</code>.</p>
+
+<div class="box note"><b>Ehrlich gesagt:</b> Unser Lernbeispiel ist selbst etwas anämisch. <code>Bestellung</code> ist eine reine Datenklasse, und der Rabatt steckt im Service. Das ist bei vielen .NET-Projekten üblich und für Einsteiger leichter zu verstehen. Es wird erst zum Problem, wenn <b>dieselben Regeln mehrfach auftauchen</b> oder Objekte ungültig werden können. Nicht jede Datenklasse braucht Methoden. Reine Transportklassen (<a href="03a-dtos.html">DTOs</a>) sollen sogar anämisch sein.</div>
+
+<h2>Schnell-Check: Was sehe ich, was ist es?</h2>
+<table>
+<tr><th>Ich sehe …</th><th>Verdacht</th></tr>
+<tr><td>SQL oder <code>new SmtpClient</code> im Controller</td><td>Fat Controller</td></tr>
+<tr><td>Eine Klasse "…Manager" mit 40 Methoden zu vielen Themen</td><td>God Class</td></tr>
+<tr><td><code>IServiceProvider</code> im Konstruktor und <code>GetRequiredService</code> im Code</td><td>Service Locator</td></tr>
+<tr><td>Entity nur mit <code>get; set;</code> und dieselbe <code>if</code>-Regel in drei Services</td><td>Anämisches Model</td></tr>
+<tr><td>Konstruktor mit acht Parametern</td><td>God Class (Klasse macht zu viel)</td></tr>
+<tr><td>Test braucht Webserver oder Datenbank für reine Logik</td><td>Fat Controller oder fehlende Interfaces</td></tr>
+</table>
+
+<h2>Wie gehe ich vor, wenn ich eins finde?</h2>
+<ol>
+  <li><b>Nicht sofort umbauen.</b> Erst prüfen: Ist es wirklich ein Problem, oder ist die Klasse klein und stabil?</li>
+  <li><b>Test schreiben,</b> der das aktuelle Verhalten festhält, soweit es geht.</li>
+  <li><b>Kleine Schritte:</b> eine Verantwortung herauslösen, Tests laufen lassen, dann die nächste.</li>
+  <li><b>Nur anfassen, was man sowieso ändert.</b> Wer an einer Stelle arbeitet, räumt sie dabei auf (Pfadfinderregel: den Platz sauberer verlassen, als man ihn vorgefunden hat).</li>
+</ol>
+
+<h2>Zusammenhang mit dem Gelernten</h2>
+<table>
+<tr><th>Anti-Pattern</th><th>Gelernt auf</th></tr>
+<tr><td>Fat Controller</td><td><a href="02-mvc.html">MVC</a>, <a href="03-services.html">Services</a>, <a href="08-projektstruktur.html">Projektstruktur</a></td></tr>
+<tr><td>God Class</td><td><a href="05a-srp.html">SRP</a>, <a href="05b-ocp.html">OCP</a></td></tr>
+<tr><td>Service Locator</td><td><a href="04-di.html">DI</a>, <a href="04a-interfaces.html">Interfaces</a>, <a href="05e-dip.html">DIP</a></td></tr>
+<tr><td>Anämisches Model</td><td><a href="03a-dtos.html">DTOs und Entities</a>, <a href="06a-repository.html">Repository</a></td></tr>
+</table>
+
+<nav><a href="08-projektstruktur.html">← Projektstruktur</a><a href="07-glossar.html">Glossar →</a></nav>
+</body>
+</html>

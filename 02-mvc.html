@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2 MVC</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav><a href="01-problem.html">← Problemstellung</a><a href="03-services.html">Weiter: Services →</a></nav>
+<h1>2. MVC: Model, View, Controller</h1>
+
+<div class="box note"><b>Alltag:</b> Im Restaurant: Die Speisekarte (View) zeigt Gerichte, die Küche (Model) hat die Zutaten, der Kellner (Controller) nimmt die Bestellung auf und vermittelt.</div>
+<div class="box merk"><b>Merksatz:</b> Anzeige, Daten und Ablauf sind drei getrennte Rollen.</div>
+
+<p><b>Idee:</b> Wir teilen den Code in drei Rollen, damit jede Rolle nur eine Aufgabe hat.</p>
+
+<div class="cols">
+  <div class="box"><b>Model</b><br>Die Daten (und ihre Regeln). Beispiel: <code>Bestellung</code> mit Email, Menge, Summe.<br><small>Bei uns: C#-Klasse im Backend</small></div>
+  <div class="box"><b>View</b><br>Die Anzeige. Beispiel: Bestellformular und Bestätigung. Enthält keine Geschäftslogik.<br><small>Bei uns: React im Frontend</small></div>
+  <div class="box"><b>Controller</b><br>Der Vermittler. Nimmt die Anfrage entgegen, steuert den Ablauf und liefert das Ergebnis zurück.<br><small>Bei uns: ASP.NET-Controller im Backend</small></div>
+</div>
+
+<h2>Bei uns: Backend und Frontend getrennt</h2>
+<p>Im klassischen MVC läuft alles in einer Anwendung, und die View ist eine HTML-Vorlage auf dem Server. Bei uns sind <b>zwei getrennte Anwendungen</b> im Spiel. Das Prinzip bleibt gleich, nur die View wohnt woanders.</p>
+
+<div class="cols">
+  <div class="box"><b>Frontend (React)</b><br><b>View</b><br>Formular, Anzeige, Fehlermeldungen. Läuft im Browser.</div>
+  <div class="box"><b>Backend (ASP.NET)</b><br><b>Controller</b> + <b>Model</b><br>Nimmt Anfragen an, arbeitet mit den Daten. Läuft auf dem Server.</div>
+</div>
+
+<div class="flow">
+  <div class="box"><b>View</b><br>React</div><span class="arrow">→ HTTP/JSON →</span>
+  <div class="box"><b>Controller</b><br>ASP.NET</div><span class="arrow">→</span>
+  <div class="box"><b>Model</b><br>C#</div>
+</div>
+
+<h2>Der Ablauf</h2>
+<ol>
+  <li>Der Benutzer füllt das Formular in React aus und klickt "Bestellen".</li>
+  <li>React schickt die Daten als JSON an das Backend: <code>POST /api/bestellungen</code>.</li>
+  <li>Der Controller nimmt die Anfrage an.</li>
+  <li>Er arbeitet mit dem Model (Daten prüfen, erzeugen, speichern).</li>
+  <li>Er schickt das Ergebnis als JSON zurück (kein HTML).</li>
+  <li>React zeigt das Ergebnis an ("Danke! Summe: 90 €").</li>
+</ol>
+
+<h2>Unser Beispiel, aufgeteilt</h2>
+<div class="cols">
+<div>
+<b>Model</b> (Backend, C#)
+<pre><code>public class Bestellung
+{
+    public string Email { get; set; }
+    public int Menge { get; set; }
+    public decimal Summe { get; set; }
+}</code></pre>
+<b>View</b> (Frontend, React)
+<pre><code>function BestellFormular() {
+  const [summe, setSumme] = useState(null);
+
+  async function absenden(daten) {
+    const res = await fetch("/api/bestellungen", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(daten),
+    });
+    const bestellung = await res.json();
+    setSumme(bestellung.summe);
+  }
+
+  if (summe !== null)
+    return &lt;p&gt;Danke! Summe: {summe} €&lt;/p&gt;;
+
+  return &lt;Formular onSubmit={absenden} /&gt;;
+}</code></pre>
+</div>
+<div>
+<b>Controller</b> (Backend, C#)
+<pre><code>[ApiController]
+[Route("api/bestellungen")]
+public class BestellungController : ControllerBase
+{
+    [HttpPost]
+    public IActionResult Anlegen(Bestellung b)
+    {
+        if (!Valide(b))
+            return BadRequest("Ungültige Eingabe");
+
+        // ... Rabatt, DB, Mail ...
+
+        return Ok(b);
+    }
+}</code></pre>
+</div>
+</div>
+
+<div class="box good"><b>Gewonnen:</b> Kein HTML mehr im C#-Code. Frontend und Backend können von verschiedenen Personen entwickelt, getestet und deployt werden. Dasselbe Backend kann eine zweite App (z. B. mobil) bedienen.</div>
+
+<div class="box bad"><b>Neues Problem:</b> Der Controller hat immer noch Rabatt, Datenbank und Mail in "// ... Rabatt, DB, Mail ...". Er wird zum <b>"Fat Controller"</b>.</div>
+
+<h2>Faustregeln</h2>
+<table>
+<tr><th>Gehört in …</th><th>Gehört nicht in …</th></tr>
+<tr><td>Controller: Anfrage prüfen, weiterleiten, passende Antwort (200, 400, 404) zurückgeben</td><td>Controller: Berechnungen, SQL, Mailversand</td></tr>
+<tr><td>View (React): Darstellung, Formulare, Anzeige von Fehlern</td><td>View (React): Geschäftsregeln wie "ab 10 Stück 10 % Rabatt". Der Server muss sie prüfen, sonst kann man sie umgehen.</td></tr>
+<tr><td>Model: Daten und einfache Regeln</td><td>Model: HTTP-Details, UI-Texte</td></tr>
+</table>
+
+<div class="box note"><b>Hinweis:</b> Man hört auch "MVVM" oder "komponentenbasiert" für React. Für den Einstieg reicht: Backend = Model + Controller, Frontend = View. Die Idee der Trennung bleibt dieselbe.</div>
+
+<nav><a href="01-problem.html">← Problemstellung</a><a href="03-services.html">Weiter: Services →</a></nav>
+</body>
+</html>

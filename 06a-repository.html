@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>6a Repository und Entity Framework</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav><a href="05d-isp.html">← SOLID: I</a><a href="06b-validierung.html">Weiter: Validierung →</a></nav>
+<h1>6a. Repository und Entity Framework</h1>
+
+<div class="box note"><b>Alltag:</b> Eine Bibliothek hat einen Bibliothekar. Du sagst "Ich möchte Buch X", und er holt es. Wo und wie die Bücher im Lager stehen, musst du nicht wissen.</div>
+<div class="box merk"><b>Merksatz:</b> Das Repository ist der Bibliothekar für Daten. Der Rest des Codes fragt nur "gib mir Bestellung 5" und weiß nichts von SQL.</div>
+
+<h2>Wo wir stehen</h2>
+<p>Der <code>BestellService</code> ruft <code>IBestellRepository</code> auf. Wir haben das Interface bisher nur benutzt. Jetzt sehen wir, was dahintersteckt.</p>
+<div class="layers">
+  <div class="box"><b>Controller</b></div>
+  <div class="box"><b>Service</b>: Regeln und Ablauf</div>
+  <div class="box"><b>Repository</b>: Daten holen und speichern</div>
+  <div class="box"><b>Datenbank</b></div>
+</div>
+
+<h2>Erinnerung: Das Problem aus Seite 1</h2>
+<pre><code>var db = new SqlConnection("Server=prod;...");
+db.Open();
+new SqlCommand($"INSERT INTO Bestellung VALUES ('{email}', {summe})", db)
+    .ExecuteNonQuery();</code></pre>
+<ul>
+  <li>SQL steht mitten in der Fachlogik.</li>
+  <li>Der String wird zusammengesetzt, das ist eine <b>SQL-Injection-Lücke</b> (jemand schreibt <code>'; DROP TABLE ...</code> in das E-Mail-Feld).</li>
+  <li>Man kann ohne echte Datenbank nichts testen.</li>
+</ul>
+
+<h2>Die drei Bausteine</h2>
+<table>
+<tr><th>Baustein</th><th>Aufgabe</th><th>Beispiel</th></tr>
+<tr><td><b>Entity</b></td><td>C#-Klasse, die eine Tabelle abbildet</td><td><code>Bestellung</code></td></tr>
+<tr><td><b>DbContext</b></td><td>Die Verbindung zur Datenbank (Entity Framework). Er kennt alle Tabellen und merkt sich Änderungen.</td><td><code>ShopDbContext</code></td></tr>
+<tr><td><b>Repository</b></td><td>Unsere eigene Klasse, die den <code>DbContext</code> benutzt und eine einfache Sprache nach oben anbietet</td><td><code>BestellRepository</code></td></tr>
+</table>
+
+<h2>Entity Framework in Kurzform</h2>
+<p><b>Entity Framework Core (EF Core)</b> ist ein ORM ("Object-Relational Mapper"): Es übersetzt zwischen C#-Objekten und Datenbanktabellen. Statt SQL zu schreiben, arbeitet man mit Objekten.</p>
+<pre><code>// Entity: eine Zeile in der Tabelle Bestellungen
+public class Bestellung
+{
+    public int Id { get; set; }
+    public string Email { get; set; }
+    public int Menge { get; set; }
+    public decimal Summe { get; set; }
+}
+
+// DbContext: die Tür zur Datenbank
+public class ShopDbContext : DbContext
+{
+    public ShopDbContext(DbContextOptions&lt;ShopDbContext&gt; options) : base(options) { }
+
+    public DbSet&lt;Bestellung&gt; Bestellungen { get; set; }   // Tabelle
+}</code></pre>
+
+<h2>Das Repository</h2>
+<div class="cols">
+<div class="box"><b>Interface</b> (Vertrag, liegt bei der Fachlogik)
+<pre><code>public interface IBestellRepository
+{
+    Task&lt;Bestellung?&gt; HoleAsync(int id);
+    Task&lt;List&lt;Bestellung&gt;&gt; HoleAlleAsync();
+    Task HinzufuegenAsync(Bestellung b);
+    Task SpeichernAsync();
+}</code></pre></div>
+<div class="box"><b>Umsetzung</b> (Technik, nutzt EF)
+<pre><code>public class BestellRepository : IBestellRepository
+{
+    private readonly ShopDbContext _db;
+
+    public BestellRepository(ShopDbContext db)
+        =&gt; _db = db;
+
+    public Task&lt;Bestellung?&gt; HoleAsync(int id)
+        =&gt; _db.Bestellungen.FindAsync(id).AsTask();
+
+    public Task&lt;List&lt;Bestellung&gt;&gt; HoleAlleAsync()
+        =&gt; _db.Bestellungen
+               .AsNoTracking()
+               .ToListAsync();
+
+    public async Task HinzufuegenAsync(Bestellung b)
+        =&gt; await _db.Bestellungen.AddAsync(b);
+
+    public Task SpeichernAsync()
+        =&gt; _db.SaveChangesAsync();
+}</code></pre></div>
+</div>
+
+<h2>Der Service nutzt es</h2>
+<pre><code>public async Task&lt;Bestellung&gt; AnlegenAsync(string email, int menge)
+{
+    var bestellung = new Bestellung { Email = email, Menge = menge };
+    bestellung.Summe = _rabatt.Berechne(bestellung);
+
+    await _repo.HinzufuegenAsync(bestellung);
+    await _repo.SpeichernAsync();             // erst hier geht es in die Datenbank
+
+    await _mail.SendeBestaetigungAsync(bestellung);
+    return bestellung;
+}</code></pre>
+<p>Kein SQL, keine Verbindung, keine Texte zum Zusammenbauen. Der Service sagt nur, <b>was</b> er braucht.</p>
+
+<h2>Wichtig: Änderungen merken und gemeinsam speichern</h2>
+<p><code>Add</code> schreibt <b>noch nicht</b> in die Datenbank. Der <code>DbContext</code> merkt sich die Änderung. Erst <code>SaveChangesAsync()</code> schickt alles auf einmal, <b>in einer Transaktion</b>: entweder alles oder nichts.</p>
+<div class="flow">
+  <div class="box">Add Bestellung</div>
+  <div class="box">Add Rechnung</div>
+  <div class="box">Ändere Lagerbestand</div><span class="arrow">→</span>
+  <div class="box good"><b>SaveChanges</b><br>alles zusammen</div>
+</div>
+
+<h2>Zusammenhang mit der Lebensdauer</h2>
+<p>Damit sich <code>BestellService</code> und <code>RabattService</code> dieselbe Verbindung teilen und gemeinsam speichern, muss der <code>DbContext</code> pro Anfrage genau einmal existieren: <b>Scoped</b> (siehe <a href="04b-lebensdauer.html">Lebensdauer</a>). Das Repository greift auf ihn zu, also ist auch das Repository Scoped.</p>
+<pre><code>// Program.cs
+builder.Services.AddDbContext&lt;ShopDbContext&gt;(o =&gt;
+    o.UseSqlServer(builder.Configuration.GetConnectionString("Shop")));   // Scoped
+
+builder.Services.AddScoped&lt;IBestellRepository, BestellRepository&gt;();  // Scoped</code></pre>
+
+<h2>Warum nicht gleich den DbContext im Service nutzen?</h2>
+<p>Diese Frage ist berechtigt. Der <code>DbContext</code> ist selbst schon eine Art Repository. Beide Wege sind verbreitet.</p>
+<table>
+<tr><th></th><th>Mit eigenem Repository</th><th>Direkt <code>DbContext</code> im Service</th></tr>
+<tr><td>Vorteil</td><td>Service kennt EF nicht, leicht gegen einen Fake auszutauschen, Abfragen an einer Stelle</td><td>Weniger Klassen, volle Möglichkeiten von EF</td></tr>
+<tr><td>Nachteil</td><td>Mehr Klassen, Gefahr, nur "durchzureichen"</td><td>Service ist an EF gekoppelt, Tests brauchen eine In-Memory-Datenbank oder Test-DB</td></tr>
+<tr><td>Passt wenn</td><td>Fachlogik soll unabhängig von der Technik bleiben, viele Tests mit Fakes</td><td>Kleine Anwendung, einfache Abfragen</td></tr>
+</table>
+<div class="box note"><b>Für unser Lernbeispiel</b> nehmen wir das Repository, weil es <a href="05e-dip.html">DIP</a> und Fakes aus den vorherigen Einheiten gut zeigt. Im echten Projekt entscheidet ihr im Team, was besser passt.</div>
+
+<h2>Gute Gewohnheiten</h2>
+<ul>
+  <li><b>Immer parametrisieren:</b> EF macht das automatisch. Wenn ihr doch mal rohes SQL braucht, nie Strings zusammensetzen, sondern Parameter nutzen.</li>
+  <li><b>Nur lesen?</b> <code>AsNoTracking()</code> spart Speicher, weil EF Änderungen nicht verfolgen muss.</li>
+  <li><b>Alles <code>async</code>:</b> Datenbankzugriffe warten. Mit <code>await</code> blockiert der Server dabei keinen Thread.</li>
+  <li><b>Repository gibt Entities zurück, keine DTOs.</b> Die Umwandlung passiert am Rand im Controller (siehe <a href="03a-dtos.html">DTOs</a>).</li>
+  <li><b>Keine Geschäftsregeln im Repository.</b> Es holt und speichert. Rabatt rechnet der Service.</li>
+</ul>
+
+<h2>Datenbank-Änderungen: Migrationen</h2>
+<p>Ändert man eine Entity (neue Spalte), muss sich auch die Datenbank ändern. EF erzeugt dafür <b>Migrationen</b>: kleine Skripte, die den Schema-Stand versionieren, ähnlich wie Git für den Code.</p>
+<pre><code>dotnet ef migrations add NeueSpalteMarge
+dotnet ef database update</code></pre>
+
+<h2>Zusammenfassung</h2>
+<table>
+<tr><th>Begriff</th><th>Bedeutung</th></tr>
+<tr><td>Entity</td><td>Klasse, die eine Tabelle abbildet</td></tr>
+<tr><td>DbContext</td><td>Verbindung zur Datenbank, merkt Änderungen, Scoped</td></tr>
+<tr><td>DbSet</td><td>Eine Tabelle im <code>DbContext</code></td></tr>
+<tr><td>Repository</td><td>Unsere Klasse, die Datenzugriff hinter einem Interface versteckt</td></tr>
+<tr><td>SaveChanges</td><td>Schreibt alle gemerkten Änderungen in einer Transaktion</td></tr>
+<tr><td>Migration</td><td>Versionierte Änderung am Datenbank-Schema</td></tr>
+</table>
+
+<nav><a href="05d-isp.html">← SOLID: I</a><a href="06b-validierung.html">Weiter: Validierung →</a></nav>
+</body>
+</html>

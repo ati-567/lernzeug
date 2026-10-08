@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>4a Interfaces in DI</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav><a href="04-di.html">← Dependency Injection</a><a href="04b-lebensdauer.html">Weiter: Lebensdauer →</a></nav>
+<h1>4a. Interfaces in Dependency Injection</h1>
+
+<div class="box note"><b>Alltag:</b> Eine Steckdose ist ein Vertrag: "Hier kommt Strom raus, Stecker Typ F passt." Dem Föhn ist egal, ob der Strom aus Wind, Kohle oder Solar kommt. Er kennt nur die Steckdose.</div>
+<div class="box merk"><b>Merksatz:</b> Ein Interface beschreibt, <b>was</b> etwas kann, nicht <b>wie</b>. Der Container entscheidet, welche Klasse dahintersteckt.</div>
+
+<h2>Was ist ein Interface?</h2>
+<p>Ein Interface ist eine Liste von Methoden ohne Inhalt. Es enthält keinen Code, nur das Versprechen: "Wer mich implementiert, kann das."</p>
+<pre><code>public interface IMailService
+{
+    void SendeBestaetigung(Bestellung b);
+}</code></pre>
+<p>Eine Klasse, die das Interface <b>implementiert</b>, muss alle Methoden liefern:</p>
+<pre><code>public class SmtpMailService : IMailService
+{
+    public void SendeBestaetigung(Bestellung b)
+    {
+        // hier steht das "Wie": SMTP-Server, Login, Text, ...
+    }
+}</code></pre>
+
+<div class="flow">
+  <div class="box"><b>IMailService</b><br>Vertrag (das Was)</div><span class="arrow">←</span>
+  <div class="box">SmtpMailService<br>Umsetzung (das Wie)</div>
+</div>
+
+<h2>Warum braucht DI Interfaces?</h2>
+<p>DI heißt: Eine Klasse bekommt ihre Abhängigkeiten von außen. Aber was genau soll sie bekommen? Es gibt zwei Möglichkeiten:</p>
+<div class="cols">
+<div class="box bad"><b>Konkrete Klasse anfordern</b>
+<pre><code>public BestellService(SmtpMailService mail)</code></pre>
+Der Service ist an SMTP gebunden. Für Tests oder einen anderen Anbieter muss er umgebaut werden. Auch mit DI bleibt die Kopplung hoch.</div>
+<div class="box good"><b>Interface anfordern</b>
+<pre><code>public BestellService(IMailService mail)</code></pre>
+Der Service weiß nur: "Ich bekomme etwas, das Mails senden kann." Welche Klasse es ist, entscheidet jemand anderes.</div>
+</div>
+<div class="box note"><b>Merke:</b> DI funktioniert technisch auch ohne Interfaces. Den vollen Nutzen (austauschbar, testbar) bekommt man aber erst mit ihnen. Das ist das Prinzip <a href="05e-dip.html">DIP</a>.</div>
+
+<h2>Wer entscheidet, welche Klasse dahintersteckt?</h2>
+<p>Das passiert an <b>einer</b> Stelle: bei der Registrierung beim Start der Anwendung.</p>
+<pre><code>// Program.cs
+services.AddScoped&lt;IMailService, SmtpMailService&gt;();
+//                  ^ Vertrag      ^ Umsetzung</code></pre>
+<p>Das liest sich: "Wenn jemand <code>IMailService</code> will, gib ihm einen <code>SmtpMailService</code>."</p>
+
+<div class="flow">
+  <div class="box">BestellService<br>will <b>IMailService</b></div><span class="arrow">→ fragt →</span>
+  <div class="box"><b>Container</b><br>Registrierung:<br>IMailService → SmtpMailService</div><span class="arrow">→ liefert →</span>
+  <div class="box good">SmtpMailService</div>
+</div>
+
+<h2>Der Gewinn: Umsetzung tauschen, ohne den Service anzufassen</h2>
+<p>Es gibt mehrere Klassen für denselben Vertrag. Der <code>BestellService</code> bleibt immer gleich.</p>
+<table>
+<tr><th>Klasse</th><th>Wofür</th><th>Wo registriert</th></tr>
+<tr><td><code>SmtpMailService</code></td><td>Echte Mails über SMTP</td><td>Produktion</td></tr>
+<tr><td><code>SendGridMailService</code></td><td>Anderer Anbieter, falls wir wechseln</td><td>später</td></tr>
+<tr><td><code>FakeMailService</code></td><td>Merkt sich Mails, sendet nichts</td><td>Unit-Tests</td></tr>
+<tr><td><code>KonsolenMailService</code></td><td>Schreibt die Mail nur ins Log</td><td>Entwicklung</td></tr>
+</table>
+<pre><code>if (builder.Environment.IsDevelopment())
+    services.AddScoped&lt;IMailService, KonsolenMailService&gt;();   // lokal: keine echten Mails
+else
+    services.AddScoped&lt;IMailService, SmtpMailService&gt;();       // Produktion</code></pre>
+<p>Der Wechsel des Mailanbieters ist <b>eine Zeile</b> in <code>Program.cs</code>. <code>BestellService</code>, Controller und Tests bleiben unverändert.</p>
+
+<h2>Und im Test?</h2>
+<pre><code>public class FakeMailService : IMailService
+{
+    public Bestellung ZuletztGesendet;
+
+    public void SendeBestaetigung(Bestellung b)
+        =&gt; ZuletztGesendet = b;
+}
+
+// Test
+var fake    = new FakeMailService();
+var service = new BestellService(fake);   // kein Container nötig, wir übergeben es selbst
+
+service.Anlegen(bestellung);
+
+Assert.NotNull(fake.ZuletztGesendet);     // Mail wurde "gesendet"</code></pre>
+<p>Der Test braucht keinen Container. Die Klasse nimmt ihr Interface im Konstruktor, also reicht es, im Test selbst eine Fake-Klasse zu übergeben. Statt eigener Fakes kann man auch Bibliotheken wie <b>Moq</b> oder <b>NSubstitute</b> nutzen, die solche Nachbauten erzeugen.</p>
+
+<h2>Wann braucht eine Klasse ein Interface, wann nicht?</h2>
+<table>
+<tr><th>Interface sinnvoll</th><th>Meist unnötig</th></tr>
+<tr><td>Zugriff auf <b>Außenwelt</b>: Datenbank, Mail, Dateien, externe APIs, Uhrzeit</td><td>Reine Datenklassen (<code>Bestellung</code>, DTOs, Models)</td></tr>
+<tr><td>Es gibt (oder gab) <b>mehrere Umsetzungen</b></td><td>Einfache Hilfsklassen ohne Abhängigkeiten, die man direkt testen kann</td></tr>
+<tr><td>Man will die Klasse in Tests <b>durch einen Fake ersetzen</b></td><td>Klassen mit genau einer Umsetzung, die nie getauscht oder ersetzt wird</td></tr>
+<tr><td>Services, die der Controller aufruft (<code>IBestellService</code>)</td><td>Das Framework selbst (Controller, <code>Program</code>)</td></tr>
+</table>
+<div class="box note"><b>Faustregel:</b> Interface für alles, was <b>langsam, unsicher oder außerhalb unseres Codes</b> ist (DB, Netz, Mail, Zeit). Nicht reflexartig für jede Klasse. Ein <code>IBestellungModel</code> mit einer einzigen Umsetzung bringt nur Schreibarbeit.</div>
+
+<h2>Was gehört in ein gutes Interface?</h2>
+<div class="cols">
+<div class="box bad"><b>Schlecht</b>
+<pre><code>public interface IMailService
+{
+    void Sende(SmtpClient client,
+               MailMessage msg);
+    SmtpServer Server { get; }
+}</code></pre>
+Das Interface verrät das Detail (SMTP). Ein anderer Anbieter passt nicht dazu. Man nennt das ein <b>"lecks Interface"</b>.</div>
+<div class="box good"><b>Gut</b>
+<pre><code>public interface IMailService
+{
+    void SendeBestaetigung(Bestellung b);
+}</code></pre>
+Das Interface spricht in Begriffen der <b>Fachlichkeit</b>. Wie die Mail rausgeht, bleibt verborgen.</div>
+</div>
+<ul>
+  <li><b>Klein halten:</b> Nur das, was der Nutzer wirklich braucht (siehe <a href="05d-isp.html">ISP</a>).</li>
+  <li><b>Fachlich benennen:</b> <code>SendeBestaetigung</code> statt <code>SmtpSend</code>.</li>
+  <li><b>Namenskonvention in C#:</b> Interfaces beginnen mit <code>I</code> (<code>IMailService</code>), die Umsetzung heißt nach dem Wie (<code>SmtpMailService</code>). Ein Name wie <code>MailServiceImpl</code> ist unüblich.</li>
+</ul>
+
+<h2>Wo liegt das Interface?</h2>
+<p>Das Interface gehört dorthin, wo es <b>gebraucht</b> wird, nicht zur Umsetzung. Der <code>BestellService</code> definiert, was er braucht (<code>IMailService</code>). Die Umsetzung (<code>SmtpMailService</code>) kommt in eine technische Schicht.</p>
+<div class="layers">
+  <div class="box"><b>Fachlogik</b><br>BestellService, <b>IMailService</b></div>
+  <div class="box"><b>Technik / Infrastruktur</b><br>SmtpMailService, SqlBestellRepository</div>
+</div>
+<p>So hängt die Technik von der Fachlogik ab und nicht umgekehrt. Das ist die "Inversion" in Dependency Inversion.</p>
+
+<h2>Häufige Fehler und Fehlermeldungen</h2>
+<table>
+<tr><th>Symptom</th><th>Ursache</th></tr>
+<tr><td><code>InvalidOperationException: Unable to resolve service for type 'IMailService'</code></td><td>Das Interface wurde nicht in <code>Program.cs</code> registriert.</td></tr>
+<tr><td>Ein Service tut etwas Unerwartetes</td><td>Dasselbe Interface wurde mehrfach registriert. Es gewinnt die <b>letzte</b> Registrierung.</td></tr>
+<tr><td>Nach <code>new</code> im Konstruktor bricht der Test</td><td>Die Klasse erzeugt die Umsetzung selbst und nutzt das Interface gar nicht.</td></tr>
+<tr><td>Zu viele Parameter im Konstruktor (5 oder mehr)</td><td>Die Klasse hat zu viele Aufgaben, siehe <a href="05a-srp.html">SRP</a>.</td></tr>
+<tr><td>Fehler wegen Lebensdauer</td><td>Siehe <a href="04b-lebensdauer.html">nächste Seite</a>.</td></tr>
+</table>
+
+<h2>Mehrere Umsetzungen gleichzeitig</h2>
+<p>Manchmal sollen <b>alle</b> Umsetzungen genutzt werden, zum Beispiel Mail und SMS:</p>
+<pre><code>services.AddScoped&lt;IBenachrichtigung, MailBenachrichtigung&gt;();
+services.AddScoped&lt;IBenachrichtigung, SmsBenachrichtigung&gt;();
+
+public class BestellService
+{
+    private readonly IEnumerable&lt;IBenachrichtigung&gt; _kanaele;
+
+    public BestellService(IEnumerable&lt;IBenachrichtigung&gt; kanaele)
+        =&gt; _kanaele = kanaele;
+
+    public void Anlegen(Bestellung b)
+    {
+        foreach (var kanal in _kanaele)
+            kanal.Sende(b);
+    }
+}</code></pre>
+<p>Ein neuer Kanal ist nur eine neue Klasse plus eine Registrierung. Der <code>BestellService</code> bleibt unverändert. Das ist das <a href="05b-ocp.html">Open/Closed-Prinzip</a> in der Praxis.</p>
+
+<h2>Zusammenfassung</h2>
+<table>
+<tr><th>Begriff</th><th>Bedeutung</th></tr>
+<tr><td>Interface</td><td>Der Vertrag: was geht, ohne zu sagen wie</td></tr>
+<tr><td>Implementierung</td><td>Die Klasse, die den Vertrag erfüllt</td></tr>
+<tr><td>Registrierung</td><td>Die Zuordnung "Interface → Klasse" im Container</td></tr>
+<tr><td>Konstruktor-Parameter</td><td>Hier steht das Interface, nicht die konkrete Klasse</td></tr>
+<tr><td>Fake / Mock</td><td>Zweite Umsetzung für Tests</td></tr>
+</table>
+
+<nav><a href="04-di.html">← Dependency Injection</a><a href="04b-lebensdauer.html">Weiter: Lebensdauer →</a></nav>
+</body>
+</html>

@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3 Services</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav><a href="02-mvc.html">← MVC</a><a href="03a-dtos.html">Weiter: DTOs →</a></nav>
+<h1>3. Services: Die Geschäftslogik auslagern</h1>
+
+<div class="box note"><b>Alltag:</b> Der Kellner kocht nicht selbst: Er gibt die Bestellung an die Küche. Die Küche weiß, wie man kocht.</div>
+<div class="box merk"><b>Merksatz:</b> Der Controller delegiert, der Service entscheidet und rechnet.</div>
+
+<p><b>Problem aus Seite 2:</b> Der Controller ist voll mit Rabatt, Datenbank und Mail (Fat Controller).</p>
+<p><b>Idee:</b> Fachliche Abläufe wandern in eigene Klassen, die <b>Services</b>. Der Controller ruft sie nur noch auf.</p>
+
+<h2>Vorher / Nachher</h2>
+<div class="cols">
+<div class="box bad"><b>Vorher</b>
+<pre><code>Anlegen(Bestellung b)
+{
+    validieren...
+    rabatt rechnen...
+    SQL schreiben...
+    Mail senden...
+    return Ok(ergebnis);
+}</code></pre></div>
+<div class="box good"><b>Nachher</b>
+<pre><code>Anlegen(Bestellung b)
+{
+    _service.Anlegen(b);
+    return Ok(ergebnis);
+}</code></pre></div>
+</div>
+
+<h2>Aufgeteilt nach Verantwortung</h2>
+<div class="flow">
+  <div class="box">Controller</div><span class="arrow">→</span>
+  <div class="box good"><b>BestellService</b><br>Ablauf + Regeln</div><span class="arrow">→</span>
+  <div class="box">RabattService</div>
+  <div class="box">BestellRepository<br>(Datenbank)</div>
+  <div class="box">MailService</div>
+</div>
+
+<pre><code>public class BestellService
+{
+    public void Anlegen(Bestellung b)
+    {
+        b.Summe = new RabattService().Berechne(b);   // Regel
+        new BestellRepository().Speichern(b);         // Speichern
+        new MailService().SendeBestaetigung(b);       // Benachrichtigen
+    }
+}
+
+public class RabattService
+{
+    public decimal Berechne(Bestellung b)
+    {
+        var summe = b.Menge * b.Preis;
+        return b.Menge &gt; 10 ? summe * 0.9m : summe;
+    }
+}</code></pre>
+
+<div class="box good"><b>Gewonnen:</b>
+<ul>
+  <li>Rabatt-Änderung an genau <b>einer</b> Stelle.</li>
+  <li>API, Konsole und Web können denselben Service nutzen.</li>
+  <li>Der Controller bleibt klein und lesbar.</li>
+</ul></div>
+
+<h2>Was ist ein Service, was nicht?</h2>
+<table>
+<tr><th>Service</th><th>Kein Service</th></tr>
+<tr><td>Fachliche Abläufe und Regeln ("Bestellung anlegen")</td><td>Alles, was man nicht einordnen kann ("Helper", "Manager", "Utils")</td></tr>
+<tr><td>Ein klarer Name, eine klare Aufgabe</td><td>Eine Klasse mit 30 Methoden zu 10 Themen</td></tr>
+<tr><td>Kennt keine HTTP-Details (Request, Response, Statuscodes)</td><td>Klassen, die <code>HttpContext</code>, <code>Request</code> oder <code>IActionResult</code> kennen</td></tr>
+</table>
+
+<div class="box note"><b>Vorab:</b> In den Beispielen geben wir noch die <code>Bestellung</code> selbst zurück. Warum das keine gute Idee ist und was man stattdessen schickt, zeigt die <a href="03a-dtos.html">nächste Seite</a>.</div>
+
+<div class="box bad"><b>Neues Problem:</b> Schau dir <code>new RabattService()</code>, <code>new BestellRepository()</code> und <code>new MailService()</code> an. Der <code>BestellService</code> erzeugt seine Helfer selbst.<br>
+Wie testest du <code>Anlegen</code>, ohne dass eine echte Mail rausgeht? Wie tauschst du die Datenbank aus? <b>Gar nicht.</b> Das ist der Einstieg in Seite 4.</div>
+
+<nav><a href="02-mvc.html">← MVC</a><a href="03a-dtos.html">Weiter: DTOs →</a></nav>
+</body>
+</html>

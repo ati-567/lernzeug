@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3a DTOs und Entities</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav><a href="03-services.html">← Services</a><a href="04-di.html">Weiter: Dependency Injection →</a></nav>
+<h1>3a. DTOs und Entities: Was schicke ich an React?</h1>
+
+<div class="box note"><b>Alltag:</b> Im Restaurant bekommt der Gast die Speisekarte, nicht das Rezeptbuch mit Einkaufspreisen und Gewinnmargen. Die Küche kennt alles, der Gast sieht nur, was für ihn gedacht ist.</div>
+<div class="box merk"><b>Merksatz:</b> Die Datenbank-Klasse (Entity) bleibt im Backend. Nach außen gehen eigene, schlanke Klassen (DTOs).</div>
+
+<h2>Das Problem</h2>
+<p>Bisher haben wir <code>Bestellung</code> an drei Stellen benutzt: als Eingabe vom Frontend, als Klasse für die Datenbank und als Antwort zurück an React. Das wirkt praktisch, ist aber gefährlich.</p>
+<pre><code>public class Bestellung
+{
+    public int Id { get; set; }
+    public string Email { get; set; }
+    public int Menge { get; set; }
+    public decimal Summe { get; set; }
+    public decimal Marge { get; set; }           // intern!
+    public string InterneNotiz { get; set; }     // intern!
+    public bool IstBezahlt { get; set; }         // darf nicht vom Kunden kommen!
+}
+
+[HttpPost]
+public IActionResult Anlegen(Bestellung b) { ... return Ok(b); }</code></pre>
+
+<h2>Was kann schiefgehen?</h2>
+<div class="cols">
+<div class="box bad"><b>Zu viel nach außen</b><br>Mit <code>return Ok(b)</code> sieht jeder im Browser die <code>Marge</code> und die <code>InterneNotiz</code>. Ein Blick in die Netzwerk-Ansicht reicht.</div>
+<div class="box bad"><b>Zu viel von außen</b><br>Wer das JSON selbst baut, kann <code>"istBezahlt": true</code> oder <code>"summe": 0.01</code> mitschicken. Das Backend übernimmt es. Man nennt das <b>Overposting</b>.</div>
+</div>
+<div class="box bad"><b>Zu enge Kopplung</b><br>Ändert man eine Spalte in der Datenbank, ändert sich automatisch die API. Das React-Frontend bricht, obwohl niemand es angefasst hat.</div>
+
+<h2>Die Lösung: Eigene Klassen für außen</h2>
+<p><b>DTO</b> heißt "Data Transfer Object": eine reine Datenklasse, nur zum Transport zwischen Frontend und Backend.</p>
+<div class="flow">
+  <div class="box">React</div><span class="arrow">⇄ DTO ⇄</span>
+  <div class="box">Controller</div><span class="arrow">→</span>
+  <div class="box">Service</div><span class="arrow">⇄ Entity ⇄</span>
+  <div class="box">Datenbank</div>
+</div>
+
+<div class="cols">
+<div class="box good"><b>Eingabe-DTO</b> (nur, was der Kunde senden darf)
+<pre><code>public class BestellungAnlegenDto
+{
+    public string Email { get; set; }
+    public int Menge { get; set; }
+}</code></pre></div>
+<div class="box good"><b>Ausgabe-DTO</b> (nur, was React sehen darf)
+<pre><code>public class BestellungDto
+{
+    public int Id { get; set; }
+    public string Email { get; set; }
+    public int Menge { get; set; }
+    public decimal Summe { get; set; }
+}</code></pre></div>
+</div>
+<p>Die <b>Entity</b> <code>Bestellung</code> bleibt wie sie war, mit <code>Marge</code>, <code>InterneNotiz</code> und <code>IstBezahlt</code>. Sie verlässt das Backend nie.</p>
+
+<h2>Der Controller übersetzt</h2>
+<pre><code>[HttpPost]
+public IActionResult Anlegen(BestellungAnlegenDto eingabe)
+{
+    Bestellung bestellung = _service.Anlegen(eingabe.Email, eingabe.Menge);
+
+    var antwort = new BestellungDto
+    {
+        Id    = bestellung.Id,
+        Email = bestellung.Email,
+        Menge = bestellung.Menge,
+        Summe = bestellung.Summe,
+    };
+    return Ok(antwort);
+}</code></pre>
+<p>Die Summe berechnet der Server (im <code>RabattService</code>). Der Kunde kann sie nicht mehr vorgeben, weil sie im Eingabe-DTO gar nicht vorkommt.</p>
+
+<h2>Wer macht die Übersetzung?</h2>
+<table>
+<tr><th>Variante</th><th>Wann</th></tr>
+<tr><td><b>Von Hand</b> im Controller oder in einer kleinen Methode <code>ToDto()</code></td><td>Für den Einstieg. Man sieht genau, was passiert.</td></tr>
+<tr><td><b>Mapper-Klasse</b> (<code>BestellungMapper</code>)</td><td>Wenn dieselbe Übersetzung an mehreren Stellen gebraucht wird.</td></tr>
+<tr><td><b>Bibliothek</b> (z. B. AutoMapper, Mapperly)</td><td>Bei vielen Klassen. Erst einsetzen, wenn die Handarbeit nervt.</td></tr>
+</table>
+<div class="box note"><b>Faustregel:</b> Lieber ein paar Zeilen Mapping zu viel als eine versehentlich offengelegte Spalte.</div>
+
+<h2>Wozu das Ganze?</h2>
+<table>
+<tr><th>Problem</th><th>Wie DTOs helfen</th></tr>
+<tr><td>Interne Daten sichtbar</td><td>Ausgabe-DTO enthält nur Erlaubtes</td></tr>
+<tr><td>Kunde schreibt Felder, die er nicht darf</td><td>Eingabe-DTO enthält nur Erlaubtes</td></tr>
+<tr><td>Datenbankänderung bricht React</td><td>API bleibt stabil, nur das Mapping wird angepasst</td></tr>
+<tr><td>Verschiedene Sichten auf dieselben Daten</td><td>Eine Entity, mehrere DTOs (Liste, Detail, Anlegen)</td></tr>
+</table>
+
+<h2>Unterschied in einem Satz</h2>
+<table>
+<tr><th></th><th>Entity</th><th>DTO</th></tr>
+<tr><td>Wofür</td><td>Abbild einer Datenbanktabelle</td><td>Transport zwischen Frontend und Backend</td></tr>
+<tr><td>Lebt wo</td><td>Backend (Service, Repository)</td><td>An der Grenze (Controller)</td></tr>
+<tr><td>Enthält</td><td>Alle Spalten, auch interne</td><td>Nur was der Aufrufer braucht</td></tr>
+<tr><td>Ändert sich, wenn</td><td>sich die Datenbank ändert</td><td>sich die Anforderung des Frontends ändert</td></tr>
+</table>
+
+<div class="box note"><b>Ehrlich gesagt:</b> Bei einer ganz kleinen internen Anwendung ohne sensible Felder ist die Entity als JSON manchmal vertretbar. Sobald etwas Internes in der Klasse steckt oder Frontend und Datenbank sich unabhängig entwickeln sollen, lohnen sich DTOs.</div>
+
+<div class="box bad"><b>Neues Problem:</b> Der <code>BestellService</code> erzeugt seine Helfer noch immer mit <code>new</code>. Weiter mit <a href="04-di.html">Dependency Injection</a>.</div>
+
+<nav><a href="03-services.html">← Services</a><a href="04-di.html">Weiter: Dependency Injection →</a></nav>
+</body>
+</html>
